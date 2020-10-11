@@ -3,12 +3,19 @@ package p2p;
 import java.util.Map;
 import java.util.Set;
 
-public abstract class Peer {
+public class Peer {
     int peerid;
     String hostName;
     int portno;
     boolean hasFile;
     Set<Integer> neighbours;
+
+    public Peer (int peerid, String hostName, int portno, boolean hasFile) {
+        this.peerid = peerid;
+        this.hostName = hostName;
+        this.portno = portno;
+        this.hasFile = hasFile;
+    }
 
     public int getPeerid() {
         return peerid;
@@ -50,6 +57,11 @@ public abstract class Peer {
         this.neighbours = neighbours;
     }
 
-    public abstract void selectPreferredNeighbors();
-    public abstract void selectOptimisticUnchokedNeighbor();
+    public void selectPreferredNeighbors() {
+
+    }
+
+    public void selectOptimisticUnchokedNeighbor() {
+
+    }
 }
