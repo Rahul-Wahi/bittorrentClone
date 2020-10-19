@@ -16,10 +16,11 @@ import java.net.Socket;
     private ObjectInputStream in;    //stream read from the socket
     private ObjectOutputStream out;    //stream write to the socket
     private int no;        //The index number of the client
+    private Peer currentPeer;
 
-    public ClientHandler(Socket connection, int no) {
+    public ClientHandler(Socket connection, Peer currentPeer) {
         this.connection = connection;
-        this.no = no;
+        this.currentPeer = currentPeer;
     }
 
     public void run() {
@@ -28,22 +29,19 @@ import java.net.Socket;
             out = new ObjectOutputStream(connection.getOutputStream());
             out.flush();
             in = new ObjectInputStream(connection.getInputStream());
+
             try {
-                while (true) {
-                    //receive the message sent from the client
-                    message = (String) in.readObject();
-                    //show the message to the user
-                    System.out.println("Receive message: " + message + " from client " + no);
-                    //Capitalize all letters in the message
-                    MESSAGE = message.toUpperCase();
-                    //send MESSAGE back to the client
-                    sendMessage(MESSAGE);
-                }
+                //receive the message sent from the client
+                message = (String) in.readObject();
+                //show the message to the user
+                System.out.println("Receive message: " + message + " from client ");
+
+                sendMessage(Message.headerMessage(currentPeer.peerid));
             } catch (ClassNotFoundException classnot) {
                 System.err.println("Data received in unknown format");
             }
         } catch (IOException ioException) {
-            System.out.println("Disconnect with Client " + no);
+            System.out.println("Disconnect with Client ");
         } finally {
             //Close connections
             try {

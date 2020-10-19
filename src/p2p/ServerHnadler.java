@@ -17,8 +17,9 @@ import java.net.UnknownHostException;
     String MESSAGE;                //capitalized message read from the server
     String serverHostname;                // hostname of the target server
     int serverPort;                  //port name of the target server
-
-    public ServerHandler(String hostName, int serverPort) {
+    Peer currentPeer;
+    public ServerHandler(Peer currentPeer, String hostName, int serverPort) {
+        this.currentPeer = currentPeer;
         this.serverHostname = hostName;
         this.serverPort = serverPort;
     }
@@ -27,7 +28,7 @@ import java.net.UnknownHostException;
         try{
             //create a socket to connect to the server
             requestSocket = new Socket(serverHostname, serverPort);
-            System.out.println("Connected to localhost in port 8000");
+            System.out.println("Connected to " + serverHostname + " in port " + serverPort);
             //initialize inputStream and outputStream
             out = new ObjectOutputStream(requestSocket.getOutputStream());
             out.flush();
@@ -35,18 +36,13 @@ import java.net.UnknownHostException;
 
             //get Input from standard input
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-            while(true)
-            {
-                System.out.print("Hello, please input a sentence: ");
-                //read a sentence from the standard input
-                message = bufferedReader.readLine();
-                //Send the sentence to the server
-                sendMessage(message);
-                //Receive the upperCase sentence from the server
-                MESSAGE = (String)in.readObject();
-                //show the message to the user
-                System.out.println("Receive message: " + MESSAGE);
-            }
+            sendMessage(Message.headerMessage(currentPeer.peerid));
+
+            //Receive the header from the server
+            MESSAGE = (String)in.readObject();
+
+            System.out.println("current peer " + currentPeer.peerid + " Received message " + MESSAGE);
+
         }
         catch (ConnectException e) {
             System.err.println("Connection refused. You need to initiate a server first.");
