@@ -36,7 +36,7 @@ import java.net.Socket;
                 //show the message to the user
                 System.out.println("Receive message: " + message + " from client ");
 
-                sendMessage(Message.headerMessage(currentPeer.peerid));
+                sendMessage(Message.headerMessage(currentPeer.getPeerid()));
             } catch (ClassNotFoundException classnot) {
                 System.err.println("Data received in unknown format");
             }

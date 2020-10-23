@@ -6,19 +6,20 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class peerProcess {
-    private static final int sPort = 8000;   //The server will be listening on this port number
-    public static String target = "localhost";
-    public static int targetPort = 8001;
     public static boolean terminate = false;
     public static void main(String[] args) throws Exception {
         System.out.println("The server is running.");
         int currentPeerId = Integer.parseInt(args[0]);
         Peer currentPeer = LoadConfig.getCurrentPeer(currentPeerId);
+        Logging.setup(currentPeerId);
+        Logger logger = Logging.getLOGGER();
 
         if (currentPeer == null) {
-            System.out.println("Peer with peerof = " + currentPeerId + " not found");
+            logger.log(Level.INFO, "Peer with peer id: [" + currentPeerId + "] not found");
             return;
         }
 
@@ -31,14 +32,15 @@ public class peerProcess {
                 break;
             }
 
-            new ServerHandler(currentPeer, peer.hostName, peer.portno).start();
+            new ServerHandler(currentPeer, peer.getHostName(), peer.getPortno()).start();
         }
 
 
-        try (ServerSocket listener = new ServerSocket(currentPeer.portno)) {
+        try (ServerSocket listener = new ServerSocket(currentPeer.getPortno())) {
             while (true) {
                 new ClientHandler(listener.accept(), currentPeer).start();
                 System.out.println("Client "  + " is connected!");
+                logger.log(Level.INFO, "Client is connected");
                 if (terminate) {
                     break;
                 }
@@ -46,9 +48,6 @@ public class peerProcess {
 
             }
         }
-
-
-
 
     }
 }

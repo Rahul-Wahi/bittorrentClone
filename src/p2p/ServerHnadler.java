@@ -36,12 +36,12 @@ import java.net.UnknownHostException;
 
             //get Input from standard input
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-            sendMessage(Message.headerMessage(currentPeer.peerid));
+            sendMessage(Message.headerMessage(currentPeer.getPeerid()));
 
             //Receive the header from the server
             MESSAGE = (String)in.readObject();
 
-            System.out.println("current peer " + currentPeer.peerid + " Received message " + MESSAGE);
+            System.out.println("current peer " + currentPeer.getPeerid() + " Received message " + MESSAGE);
 
         }
         catch (ConnectException e) {

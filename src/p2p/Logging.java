@@ -33,6 +33,7 @@ public class Logging {
     }
 }
 
+//Formatter for printing the logs as per project format
 class P2PFormatter extends Formatter {
     // Create a DateFormat to format the logger timestamp.
     private static final DateFormat dateFormat = new SimpleDateFormat("[dd/MM/yyyy hh:mm:ss.SSS]");

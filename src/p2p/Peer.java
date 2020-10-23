@@ -4,11 +4,11 @@ import java.util.Map;
 import java.util.Set;
 
 public class Peer {
-    int peerid;
-    String hostName;
-    int portno;
-    boolean hasFile;
-    Set<Integer> neighbours;
+    private int peerid;
+    private String hostName;
+    private int portno;
+    private boolean hasFile;
+    private Set<Integer> neighbours;
 
     public Peer (int peerid, String hostName, int portno, boolean hasFile) {
         this.peerid = peerid;

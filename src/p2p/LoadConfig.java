@@ -102,7 +102,7 @@ public class LoadConfig {
         List<Peer> peers = loadPeersInfo();
 
         for (Peer peer : peers) {
-            if (peer.peerid == peerid) {
+            if (peer.getPeerid() == peerid) {
                 return peer;
             }
         }
