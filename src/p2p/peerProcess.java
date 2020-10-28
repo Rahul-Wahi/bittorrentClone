@@ -28,15 +28,15 @@ public class peerProcess {
 
 
         for (Peer peer : peers) {
-            if (peer.getPeerid() == currentPeerId) {
+            if (peer.getPeerID() == currentPeerId) {
                 break;
             }
 
-            new ServerHandler(currentPeer, peer.getHostName(), peer.getPortno()).start();
+            new ServerHandler(currentPeer, peer.getHostName(), peer.getPortNo()).start();
         }
 
 
-        try (ServerSocket listener = new ServerSocket(currentPeer.getPortno())) {
+        try (ServerSocket listener = new ServerSocket(currentPeer.getPortNo())) {
             while (true) {
                 new ClientHandler(listener.accept(), currentPeer).start();
                 System.out.println("Client "  + " is connected!");

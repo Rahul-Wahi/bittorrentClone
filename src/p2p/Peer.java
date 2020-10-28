@@ -4,25 +4,25 @@ import java.util.Map;
 import java.util.Set;
 
 public class Peer {
-    private int peerid;
+    private int peerID;
     private String hostName;
-    private int portno;
+    private int portNo;
     private boolean hasFile;
     private Set<Integer> neighbours;
 
-    public Peer (int peerid, String hostName, int portno, boolean hasFile) {
-        this.peerid = peerid;
+    public Peer (int peerID, String hostName, int portNo, boolean hasFile) {
+        this.peerID = peerID;
         this.hostName = hostName;
-        this.portno = portno;
+        this.portNo = portNo;
         this.hasFile = hasFile;
     }
 
-    public int getPeerid() {
-        return peerid;
+    public int getPeerID() {
+        return peerID;
     }
 
-    public void setPeerid(int peerid) {
-        this.peerid = peerid;
+    public void setPeerID(int peerID) {
+        this.peerID = peerID;
     }
 
     public String getHostName() {
@@ -33,12 +33,12 @@ public class Peer {
         this.hostName = hostName;
     }
 
-    public int getPortno() {
-        return portno;
+    public int getPortNo() {
+        return portNo;
     }
 
-    public void setPortno(int portno) {
-        this.portno = portno;
+    public void setPortNo(int portNo) {
+        this.portNo = portNo;
     }
 
     public boolean isHasFile() {
