@@ -7,7 +7,18 @@ public class CommonConfig {
     String fileName;
     int fileSize;
     int pieceSize;
+    private static CommonConfig commonConfig = null;
+    private CommonConfig() {
 
+    }
+
+    //static method to create instance of Singleton class
+    public static CommonConfig getInstance() {
+        if (commonConfig == null)
+            commonConfig = new CommonConfig();
+
+        return commonConfig;
+    }
     public int getNumberOfPreferredNeighbors() {
         return numberOfPreferredNeighbors;
     }
