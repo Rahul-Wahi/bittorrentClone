@@ -1,9 +1,13 @@
 package p2p;
 
+import java.awt.*;
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A handler thread class.  Handlers are spawned from the listening
@@ -13,7 +17,6 @@ import java.net.UnknownHostException;
     Socket requestSocket;           //socket connect to the server
     ObjectOutputStream out;         //stream write to the socket
     ObjectInputStream in;          //stream read from the socket
-    String message;                //message send to the server
     String MESSAGE;                //capitalized message read from the server
     String serverHostname;                // hostname of the target server
     int serverPort;                  //port name of the target server
@@ -26,31 +29,43 @@ import java.net.UnknownHostException;
 
     public void run() {
         try{
+            Logger logger = Logging.getLOGGER();
+            Message message = new Message();
             //create a socket to connect to the server
             requestSocket = new Socket(serverHostname, serverPort);
-            System.out.println("Connected to " + serverHostname + " in port " + serverPort);
+
             //initialize inputStream and outputStream
             out = new ObjectOutputStream(requestSocket.getOutputStream());
             out.flush();
             in = new ObjectInputStream(requestSocket.getInputStream());
 
-            //get Input from standard input
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-            sendMessage(Message.headerMessage(currentPeer.getPeerid()));
+            //send handshake message
+            sendMessage(message.handshakeMessage(currentPeer.getPeerid()));
 
-            //Receive the header from the server
-            MESSAGE = (String)in.readObject();
+            byte[] receivedHandshakeByte = new byte[32];
 
+            //receive handshake message
+            in.read(receivedHandshakeByte);
+            int peerid = message.verifyHandshakeMessage(receivedHandshakeByte);
+
+            BitField bitField = currentPeer.getBitField();
+
+            //send bit field message
+            if (bitField.getNumOfSetBit() > 0) {
+                sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
+            }
+
+            byte[] recivedBitFieldMessage = new byte[308];
+            in.read(recivedBitFieldMessage);
+            byte[] receivedBitField = new byte[306];
+            System.arraycopy(recivedBitFieldMessage, 2, receivedBitField, 0, 306);
+            System.out.println(ByteConversionUtil.bytesToString(receivedBitField));
             System.out.println("current peer " + currentPeer.getPeerid() + " Received message " + MESSAGE);
 
         }
         catch (ConnectException e) {
             System.err.println("Connection refused. You need to initiate a server first.");
-        }
-        catch ( ClassNotFoundException e ) {
-            System.err.println("Class not found");
-        }
-        catch(UnknownHostException unknownHost) {
+        } catch(UnknownHostException unknownHost) {
             System.err.println("You are trying to connect to an unknown host!");
         }
         catch(IOException ioException){
@@ -80,4 +95,17 @@ import java.net.UnknownHostException;
         }
     }
 
+    public synchronized void sendMessage(byte[] msg) {
+        try{
+            //stream write the message
+            System.out.println("Header ");
+            System.out.println(msg.length);
+            //out.writeObject(msg);
+            out.write(msg);
+            out.flush();
+        }
+        catch(IOException ioException){
+            ioException.printStackTrace();
+        }
+    }
 }
