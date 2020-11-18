@@ -19,7 +19,7 @@ public class MessageHandler extends Thread {
         this.remotePeerid = remotePeerid;
     }
 
-    public void run () {
+    public void run() {
         switch (messageType) {
             case BITFIELD:
                 BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
@@ -32,6 +32,7 @@ public class MessageHandler extends Thread {
                     peerHandler.sendMessage(Message.message(MessageType.NOTINTRESTED));
                 }
                 break;
+
             case HAVE:
                 logger.log(Level.FINE, "Received 'Have' Message from [" + remotePeerid + "]");
                 int pieceIndex = ByteConversionUtil.bytesToInt(messagePayload);
@@ -44,25 +45,35 @@ public class MessageHandler extends Thread {
                     peerHandler.sendMessage(Message.message(MessageType.NOTINTRESTED));
                 }
                 break;
+
             case CHOKE:
                 logger.log(Level.FINE, "Received 'Choke' Message from [" + remotePeerid + "]");
                 break;
+
             case UNCHOKE:
                 logger.log(Level.FINE, "Received 'Unchoke' Message from [" + remotePeerid + "]");
                 break;
+
             case PIECE:
                 logger.log(Level.FINE, "Received 'Piece' Message from [" + remotePeerid + "]");
                 break;
+
             case REQUEST:
                 logger.log(Level.FINE, "Received 'Request' Message from [" + remotePeerid + "]");
                 break;
+
             case INTERESTED:
                 logger.log(Level.FINE, "Received Interested Message from [" + remotePeerid + "]");
                 currentPeer.addInterestedPeers(remotePeerid);
                 break;
+
             case NOTINTRESTED:
                 logger.log(Level.FINE, "Received Not Interested Message from [" + remotePeerid + "]");
                 currentPeer.removeInterestedPeers(remotePeerid);
+                break;
+
+            default:
+                logger.log(Level.FINE, "Received 'Unknown' Message from [" + remotePeerid + "]");
                 break;
         }
     }
