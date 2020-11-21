@@ -30,7 +30,7 @@ public class MessageHandler extends Thread {
                 break;
 
             case HAVE: {
-                logger.log(Level.FINE, "Received 'Have' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Have' Message from [" + remotePeerid + "]");
                 //update remote peer bitfield
                 int pieceIndex = ByteConversionUtil.bytesToInt(messagePayload);
                 BitField remoteBitField = currentPeer.getPeerBitField(remotePeerid);
@@ -40,19 +40,19 @@ public class MessageHandler extends Thread {
             }
 
             case CHOKE:
-                logger.log(Level.FINE, "Received 'Choke' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Choke' Message from [" + remotePeerid + "]");
                 peerHandler.setIsCurrentPeerChoked(true);
                 break;
 
             case UNCHOKE:
-                logger.log(Level.FINE, "Received 'Unchoke' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Unchoke' Message from [" + remotePeerid + "]");
                 peerHandler.setIsCurrentPeerChoked(false);
 
                 //send request message for piece if any else send not interested
                 break;
 
             case PIECE: {
-                logger.log(Level.FINE, "Received 'Piece' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Piece' Message from [" + remotePeerid + "]");
                 // process piece and store
                 int pieceIndex = Piece.getPieceIndex(messagePayload);
                 Piece.store(Piece.getPieceContent(messagePayload), pieceIndex);
@@ -62,22 +62,22 @@ public class MessageHandler extends Thread {
             }
 
             case REQUEST:
-                logger.log(Level.FINE, "Received 'Request' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Request' Message from [" + remotePeerid + "]");
                 //send piece
                 break;
 
             case INTERESTED:
-                logger.log(Level.FINE, "Received Interested Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received Interested Message from [" + remotePeerid + "]");
                 currentPeer.addInterestedPeers(remotePeerid);
                 break;
 
             case NOTINTRESTED:
-                logger.log(Level.FINE, "Received Not Interested Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received Not Interested Message from [" + remotePeerid + "]");
                 currentPeer.removeInterestedPeers(remotePeerid);
                 break;
 
             default:
-                logger.log(Level.FINE, "Received 'Unknown' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Unknown' Message from [" + remotePeerid + "]");
                 break;
         }
     }
