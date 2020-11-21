@@ -11,10 +11,32 @@ import java.util.logging.Logger;
 
 public class peerProcess {
     public static boolean terminate = false;
+    private static Peer currentPeer;
+
+    public static void setTerminate () {
+        terminate = true;
+    }
+
+    public static boolean getTerminate () {
+        return terminate;
+    }
+
+    public static Peer getCurrentPeer() {
+        return currentPeer;
+    }
+
+    public static void setCurrentPeer(Peer currentPeer) {
+        peerProcess.currentPeer = currentPeer;
+    }
+
+
     public static void main(String[] args) throws Exception {
         System.out.println("The server is running.");
+        CommonConfig commonConfig = LoadConfig.loadCommonConfig();
+        List<Peer> peers = LoadConfig.loadPeersInfo();
         int currentPeerId = Integer.parseInt(args[0]);
         Peer currentPeer = LoadConfig.getCurrentPeer(currentPeerId);
+        peerProcess.setCurrentPeer(currentPeer);
         Logging.setup(currentPeerId);
         Logger logger = Logging.getLOGGER();
 
@@ -23,29 +45,24 @@ public class peerProcess {
             return;
         }
 
-        List<Peer> peers = LoadConfig.loadPeersInfo();
-        CommonConfig commonConfig = LoadConfig.loadCommonConfig();
-
-
         for (Peer peer : peers) {
             if (peer.getPeerid() == currentPeerId) {
                 break;
             }
 
             new ServerHandler(currentPeer, peer.getHostName(), peer.getPortno()).start();
+            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] makes a connection to " +
+                    "Peer [" + peer.getPeerid() + "].");
         }
 
 
         try (ServerSocket listener = new ServerSocket(currentPeer.getPortno())) {
             while (true) {
                 new ClientHandler(listener.accept(), currentPeer).start();
-                System.out.println("Client "  + " is connected!");
-                logger.log(Level.INFO, "Client is connected");
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] is connected from");
                 if (terminate) {
                     break;
                 }
-
-
             }
         }
 

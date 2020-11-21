@@ -22,44 +22,48 @@ public class MessageHandler extends Thread {
     public void run() {
         switch (messageType) {
             case BITFIELD:
+                logger.log(Level.FINE, "Received 'Bitfield' Message from [" + remotePeerid + "]");
+                //add received bit field to current peer's remotePeer bitfield map
                 BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
-                BitField currentBitField = currentPeer.getBitField();
                 currentPeer.addPeersBitField(remotePeerid, receivedBitField);
-
-                if (currentBitField.containsInterestedPieces(receivedBitField.getBitFieldString())) {
-                    peerHandler.sendMessage(Message.message(MessageType.INTERESTED));
-                } else {
-                    peerHandler.sendMessage(Message.message(MessageType.NOTINTRESTED));
-                }
+                evaluateRemoteBitField(receivedBitField);
                 break;
 
-            case HAVE:
+            case HAVE: {
                 logger.log(Level.FINE, "Received 'Have' Message from [" + remotePeerid + "]");
+                //update remote peer bitfield
                 int pieceIndex = ByteConversionUtil.bytesToInt(messagePayload);
                 BitField remoteBitField = currentPeer.getPeerBitField(remotePeerid);
                 remoteBitField.setBit(pieceIndex);
-                BitField bitField = currentPeer.getBitField();
-                if (bitField.containsInterestedPieces(remoteBitField.getBitFieldString())) {
-                    peerHandler.sendMessage(Message.message(MessageType.INTERESTED));
-                } else {
-                    peerHandler.sendMessage(Message.message(MessageType.NOTINTRESTED));
-                }
+                evaluateRemoteBitField(remoteBitField);
                 break;
+            }
 
             case CHOKE:
                 logger.log(Level.FINE, "Received 'Choke' Message from [" + remotePeerid + "]");
+                peerHandler.setIsCurrentPeerChoked(true);
                 break;
 
             case UNCHOKE:
                 logger.log(Level.FINE, "Received 'Unchoke' Message from [" + remotePeerid + "]");
+                peerHandler.setIsCurrentPeerChoked(false);
+
+                //send request message for piece if any else send not interested
                 break;
 
-            case PIECE:
+            case PIECE: {
                 logger.log(Level.FINE, "Received 'Piece' Message from [" + remotePeerid + "]");
+                // process piece and store
+                int pieceIndex = Piece.getPieceIndex(messagePayload);
+                Piece.store(Piece.getPieceContent(messagePayload), pieceIndex);
+                new BroadcastMessage(Message.haveMessage(pieceIndex)).run();
+                //send request message for piece if any or not choked (if no piece send not interested)
                 break;
+            }
 
             case REQUEST:
                 logger.log(Level.FINE, "Received 'Request' Message from [" + remotePeerid + "]");
+                //send piece
                 break;
 
             case INTERESTED:
@@ -75,6 +79,17 @@ public class MessageHandler extends Thread {
             default:
                 logger.log(Level.FINE, "Received 'Unknown' Message from [" + remotePeerid + "]");
                 break;
+        }
+    }
+
+    private void evaluateRemoteBitField(BitField remoteBitField) {
+        BitField bitField = currentPeer.getBitField();
+
+        //respond interested/not-interested message
+        if (bitField.containsInterestedPieces(remoteBitField.getBitFieldString())) {
+            peerHandler.sendMessage(Message.message(MessageType.INTERESTED));
+        } else {
+            peerHandler.sendMessage(Message.message(MessageType.NOTINTRESTED));
         }
     }
 }

@@ -38,6 +38,11 @@ public class Message {
         return peerid;
     }
 
+    public static byte[] haveMessage(int index) {
+        byte[] indexBytes = ByteConversionUtil.intToBytes(index);
+        return message(MessageType.HAVE, indexBytes);
+    }
+
     //choke, unchoke, interested, not interested will use this method as they dont have payload
     public static byte[] message(MessageType messageType) {
         byte[] messageTypeByte = ByteConversionUtil.stringToBytes(Integer.toString(messageType.getValue()));
@@ -51,6 +56,12 @@ public class Message {
         byte[] payloadBytes = ByteConversionUtil.stringToBytes(payload);
         byte[] messageLengthBytes = ByteConversionUtil.intToBytes(messageTypeByte.length + payloadBytes.length);
         return createMessage(messageLengthBytes, messageTypeByte, payloadBytes);
+    }
+
+    public static byte[] message(MessageType messageType, byte[] payload) {
+        byte[] messageTypeByte = ByteConversionUtil.stringToBytes(Integer.toString(messageType.getValue()));
+        byte[] messageLengthBytes = ByteConversionUtil.intToBytes(messageTypeByte.length + payload.length);
+        return createMessage(messageLengthBytes, messageTypeByte, payload);
     }
 
     private static byte[] createMessage(byte[] fistPart, byte[] middlePart, byte[] lastPart) {

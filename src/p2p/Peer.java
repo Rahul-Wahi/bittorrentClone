@@ -1,5 +1,6 @@
 package p2p;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -14,14 +15,30 @@ public class Peer {
     private BitField bitField;
     private Map<Integer, BitField> peersBitField;
     private Set<Integer> interestedPeers;
+    private Set<Integer> neededPieces;
+    private FileHandler fileHandler;
+    private Map<Integer, PeerHandler> connections;
 
-    public Peer (int peerid, String hostName, int portno, boolean hasFile) {
+    public Map<Integer, PeerHandler> getConnections() {
+        return connections;
+    }
+
+    synchronized public void addConnection(int remotePeerid, PeerHandler peerHandler) {
+        this.connections.put(remotePeerid, peerHandler);
+    }
+
+    public PeerHandler getConnection(int remotePeerid) {
+        return connections.get(remotePeerid);
+    }
+
+    public Peer (int peerid, String hostName, int portno, boolean hasFile) throws IOException {
         this.peerid = peerid;
         this.hostName = hostName;
         this.portno = portno;
         this.hasFile = hasFile;
         bitField = new BitField(hasFile);
         peersBitField = new HashMap<>();
+        fileHandler = new FileHandler(this);
     }
 
     public void addBitField(int peerid, BitField bitField) {
@@ -47,6 +64,7 @@ public class Peer {
     synchronized public void removeInterestedPeers(int remotePeerid) {
         interestedPeers.remove(remotePeerid);
     }
+
     public int getPeerid() {
         return peerid;
     }
@@ -71,7 +89,7 @@ public class Peer {
         this.portno = portno;
     }
 
-    public boolean isHasFile() {
+    public boolean hasFile() {
         return hasFile;
     }
 
@@ -98,4 +116,6 @@ public class Peer {
     public BitField getBitField() {
         return bitField;
     }
+
+    public FileHandler getFileHandler() { return fileHandler; }
 }

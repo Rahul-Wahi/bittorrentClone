@@ -1,14 +1,11 @@
 package p2p;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class FileHandler {
-    File file;
     private static CommonConfig commonConfig = CommonConfig.getInstance();
     private RandomAccessFile randomAccessFile;
     private Peer currentPeer;
@@ -48,6 +45,4 @@ public class FileHandler {
             reentrantLock.unlock();
         }
     }
-
-
 }

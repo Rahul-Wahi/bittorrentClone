@@ -7,19 +7,20 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+
 public class LoadConfig {
     final static String COMMON_CONFIG_FILE = "Common.cfg";
     final static String PEER_INFO_FILE = "PeerInfo.cfg";
-    final static String NUMBER_OF_PREFERRED_NEIGHBORS = "numberOfPreferredNeighbors";
-    final static String UNCHOKING_INTERVAL = "unchokingInterval";
-    final static String OPTIMISTIC_UNCHOKING_INTERVAL = "optimisticUnchokingInterval";
-    final static String FILENAME = "fileName";
-    final static String FILESIZE = "fileSize";
-    final static String PIECESIZE = "pieceSize";
+    final static String NUMBER_OF_PREFERRED_NEIGHBORS = "NumberOfPreferredNeighbors";
+    final static String UNCHOKING_INTERVAL = "UnchokingInterval";
+    final static String OPTIMISTIC_UNCHOKING_INTERVAL = "OptimisticUnchokingInterval";
+    final static String FILENAME = "FileName";
+    final static String FILESIZE = "FileSize";
+    final static String PIECESIZE = "PieceSize";
 
     public static CommonConfig loadCommonConfig () throws IOException {
         File file = new File(COMMON_CONFIG_FILE);
-        CommonConfig commonConfig = new CommonConfig();
+        CommonConfig commonConfig = CommonConfig.getInstance();
         Map<String, String> commonInfo = new HashMap<>();
         BufferedReader br = new BufferedReader(new FileReader(file));
 

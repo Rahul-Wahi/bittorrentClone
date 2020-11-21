@@ -12,7 +12,7 @@ import java.util.logging.Level;
  * A handler thread class.  Handlers are spawned from the listening
  * loop and are responsible for dealing with a single client's requests.
  */
-    class ClientHandler extends Thread {
+    class ClientHandler extends Thread implements PeerHandler {
     //private String message;    //message received from the client
     private String MESSAGE;    //uppercase message send to the client
     private Socket connection;
@@ -21,6 +21,8 @@ import java.util.logging.Level;
     private int no;        //The index number of the client
     private Peer currentPeer;
     Logger logger = Logging.getLOGGER();
+    private boolean currentPeerChoked;
+
     public ClientHandler(Socket connection, Peer currentPeer) {
         this.connection = connection;
         this.currentPeer = currentPeer;
@@ -34,15 +36,13 @@ import java.util.logging.Level;
             out.flush();
             in = new ObjectInputStream(connection.getInputStream());
 
-            //message = (String) in.readObject();
-            //message = "";
             byte[] receivedHandshakeByte = new byte[32];
-            //in.read(receivedHandshakeByte);
             in.read(receivedHandshakeByte);
-            int peerid = message.verifyHandshakeMessage(receivedHandshakeByte);
+            int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] is connected from ["
-                    + peerid + "]");
+                    + remotePeerid + "]");
 
+            currentPeer.addConnection(remotePeerid, this);
             //reply with handshake message
             sendMessage(message.handshakeMessage(currentPeer.getPeerid()));
 
@@ -53,11 +53,25 @@ import java.util.logging.Level;
                 sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
             }
 
+
             byte[] recivedBitFieldMessage = new byte[307];
             byte[] receivedBitField = new byte[306];
             System.arraycopy(recivedBitFieldMessage, 1, receivedBitField, 0, 306);
             System.out.println(ByteConversionUtil.bytesToString(receivedBitField));
 
+            while (!peerProcess.getTerminate()) {
+                byte[] messageLengthByte = new byte[4];
+                byte[] messageType = new byte[1];
+                in.read(messageLengthByte);
+                in.read(messageType);
+                int messageLength = ByteConversionUtil.bytesToInt(messageLengthByte);
+                byte[] messagePayload = new byte[messageLength - messageType.length];
+                System.out.println("len " + messageLength + " t " + ByteConversionUtil.bytesToString(messageType));
+                in.read(messagePayload);
+                logger.log(Level.INFO, ByteConversionUtil.bytesToString(messageType));
+
+                new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
+            }
 
 
         } catch (IOException ioException) {
@@ -85,15 +99,25 @@ import java.util.logging.Level;
         }
     }
 
+    @Override
     //send a message to the output stream
-    public void sendMessage(byte[] msg) {
+    synchronized public void sendMessage(byte[] msg) {
         try {
             out.write(msg);
             out.flush();
-            System.out.println("Send message: " + msg + " to Client " + no);
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
+    }
+
+    @Override
+    public synchronized void setIsCurrentPeerChoked(boolean isCurrentPeerChoked) {
+        this.currentPeerChoked = isCurrentPeerChoked;
+    }
+
+    @Override
+    public boolean isCurrentPeerChoked() {
+        return currentPeerChoked;
     }
 
     //receive a message to the output stream

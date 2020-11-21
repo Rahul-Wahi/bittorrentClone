@@ -29,7 +29,7 @@ public class BitField {
         return false;
     }
 
-    public void setBit (int pieceIndex) {
+    synchronized public void setBit (int pieceIndex) {
         if (!bitField[pieceIndex]) {
             numOfSetBit++;
             bitField[pieceIndex] = true;
