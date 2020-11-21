@@ -74,35 +74,35 @@ public class LoadConfig {
         return commonConfig;
     }
 
-    public static List<Peer> loadPeersInfo () throws IOException {
+    public static List<PeerInfo> loadPeersInfo () throws IOException {
         File file = new File(PEER_INFO_FILE);
-        List<Peer> peersList = new ArrayList<>();
+        List<PeerInfo> peersList = new ArrayList<>();
 
         BufferedReader br = new BufferedReader(new FileReader(file));
 
         String info;
-        String[] peerInfo;
+        String[] peerInfoArray;
         while ((info = br.readLine()) != null) {
             if (info.equals("")) {
                 continue;
             }
 
-            peerInfo = info.split(" ", 4);
-            int peerId = Integer.parseInt(peerInfo[0]);
-            String host = peerInfo[1];
-            int portNo = Integer.parseInt(peerInfo[2]);
-            boolean hasFile = Integer.parseInt(peerInfo[3]) == 1;
-            Peer peer = new Peer(peerId, host, portNo, hasFile);
-            peersList.add(peer);
+            peerInfoArray = info.split(" ", 4);
+            int peerId = Integer.parseInt(peerInfoArray[0]);
+            String host = peerInfoArray[1];
+            int portNo = Integer.parseInt(peerInfoArray[2]);
+            boolean hasFile = Integer.parseInt(peerInfoArray[3]) == 1;
+            PeerInfo  peerInfo = new PeerInfo(peerId, host, portNo, hasFile);
+            peersList.add(peerInfo);
         }
 
         return peersList;
     }
 
-    public static Peer getCurrentPeer (int peerid) throws IOException {
-        List<Peer> peers = loadPeersInfo();
+    public static PeerInfo getCurrentPeer (int peerid) throws IOException {
+        List<PeerInfo> peers = loadPeersInfo();
 
-        for (Peer peer : peers) {
+        for (PeerInfo peer : peers) {
             if (peer.getPeerid() == peerid) {
                 return peer;
             }
