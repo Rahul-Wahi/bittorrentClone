@@ -47,6 +47,8 @@ import java.util.logging.Logger;
 
             //receive handshake message
             in.read(receivedHandshakeByte);
+            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handshake message : "
+                    + ByteConversionUtil.bytesToString(receivedHandshakeByte));
             int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
 
             currentPeer.addConnection(remotePeerid, this);
@@ -70,13 +72,6 @@ import java.util.logging.Logger;
                 logger.log(Level.INFO, ByteConversionUtil.bytesToString(messageType));
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
-
-//            byte[] recivedBitFieldMessage = new byte[308];
-//            in.read(recivedBitFieldMessage);
-//            byte[] receivedBitField = new byte[306];
-//            System.arraycopy(recivedBitFieldMessage, 2, receivedBitField, 0, 306);
-//            System.out.println(ByteConversionUtil.bytesToString(receivedBitField));
-//            System.out.println("current peer " + currentPeer.getPeerid() + " Received message " + MESSAGE);
 
         }
         catch (ConnectException e) {
@@ -115,9 +110,6 @@ import java.util.logging.Logger;
     public synchronized void sendMessage(byte[] msg) {
         try{
             //stream write the message
-            System.out.println("Header ");
-            System.out.println(msg.length);
-            //out.writeObject(msg);
             out.write(msg);
             out.flush();
         }
