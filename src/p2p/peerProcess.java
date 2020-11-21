@@ -33,19 +33,22 @@ public class peerProcess {
     public static void main(String[] args) throws Exception {
         System.out.println("The server is running.");
         CommonConfig commonConfig = LoadConfig.loadCommonConfig();
-        List<Peer> peers = LoadConfig.loadPeersInfo();
+        List<PeerInfo> peers = LoadConfig.loadPeersInfo();
         int currentPeerId = Integer.parseInt(args[0]);
-        Peer currentPeer = LoadConfig.getCurrentPeer(currentPeerId);
-        peerProcess.setCurrentPeer(currentPeer);
+        PeerInfo currentPeerInfo = LoadConfig.getCurrentPeer(currentPeerId);
+
         Logging.setup(currentPeerId);
         Logger logger = Logging.getLOGGER();
 
-        if (currentPeer == null) {
+        if (currentPeerInfo == null) {
             logger.log(Level.INFO, "Peer with peer id: [" + currentPeerId + "] not found");
             return;
         }
 
-        for (Peer peer : peers) {
+        Peer currentPeer = new Peer(currentPeerInfo);
+        peerProcess.setCurrentPeer(currentPeer);
+
+        for (PeerInfo peer : peers) {
             if (peer.getPeerid() == currentPeerId) {
                 break;
             }
@@ -56,6 +59,8 @@ public class peerProcess {
         }
 
 
+        currentPeer.selectPreferredNeighbors();
+        currentPeer.selectOptimisticUnchokedNeighbor();
         try (ServerSocket listener = new ServerSocket(currentPeer.getPortno())) {
             while (true) {
                 new ClientHandler(listener.accept(), currentPeer).start();
