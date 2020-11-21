@@ -10,7 +10,7 @@ public class FileHandler {
     private RandomAccessFile randomAccessFile;
     private Peer currentPeer;
     private ReentrantLock  reentrantLock;
-    private final static String PATH = "./src/";
+    private final static String PATH = "./peer_";
     public FileHandler(Peer currentPeer) throws IOException {
         String fileName = PATH + currentPeer.getPeerid() + "/" + commonConfig.getFileName();
         File file = new File(fileName);
