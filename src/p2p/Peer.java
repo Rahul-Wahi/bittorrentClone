@@ -11,6 +11,8 @@ import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class Peer {
@@ -30,7 +32,7 @@ public class Peer {
     private final ScheduledThreadPoolExecutor prefferedNeighbourScheduler;
     private final ScheduledThreadPoolExecutor optimisticNeighbourScheduler;
     CommonConfig commonConfig = CommonConfig.getInstance();
-
+    Logger logger = Logging.getLOGGER();
     public Map<Integer, PeerHandler> getConnections() {
         return connections;
     }
@@ -125,6 +127,7 @@ public class Peer {
 
     public void selectPreferredNeighbors() {
         prefferedNeighbourScheduler.scheduleAtFixedRate(() -> {
+            logger.log(Level.INFO, "Select Neighbours");
             List<Integer> neighboursId = new ArrayList<>(connections.keySet());
             Set<Integer> prevNeighbour =  this.neighbours;
             List<Integer> newNeighbour;
@@ -134,7 +137,7 @@ public class Peer {
                 neighboursId.sort((Integer p1, Integer p2) -> {
                     return -1;
                 });
-                newNeighbour = neighboursId.subList(0, commonConfig.getNumberOfPreferredNeighbors());
+                newNeighbour = neighboursId.subList(0, Math.min(commonConfig.getNumberOfPreferredNeighbors(), neighboursId.size()));
             }
 
 
@@ -149,11 +152,11 @@ public class Peer {
 
     public void selectOptimisticUnchokedNeighbor() {
 
-        if (connections.size() == commonConfig.getNumberOfPreferredNeighbors()) {
-            return;
-        }
-
         optimisticNeighbourScheduler.scheduleAtFixedRate(() -> {
+            logger.log(Level.INFO, "Select Optimistic Neighbours");
+            if (connections.size() <= commonConfig.getNumberOfPreferredNeighbors()) {
+                return;
+            }
             List<Integer> neighboursList = new ArrayList<>(this.connections.keySet());
             int index = ThreadLocalRandom.current().nextInt(0, connections.size());
 
