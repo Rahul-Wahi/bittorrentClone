@@ -1,9 +1,17 @@
 package p2p;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class Peer {
     private int peerid;
@@ -11,13 +19,17 @@ public class Peer {
     private int portno;
     private boolean hasFile;
     private Set<Integer> neighbours;
+    private Integer optimisticNeighbour;
     private int numberOfPieces;
-    private BitField bitField;
+    private final BitField bitField;
     private Map<Integer, BitField> peersBitField;
     private Set<Integer> interestedPeers;
     private Set<Integer> neededPieces;
-    private FileHandler fileHandler;
-    private Map<Integer, PeerHandler> connections;
+    private final FileHandler fileHandler;
+    private final Map<Integer, PeerHandler> connections;
+    private final ScheduledThreadPoolExecutor prefferedNeighbourScheduler;
+    private final ScheduledThreadPoolExecutor optimisticNeighbourScheduler;
+    CommonConfig commonConfig = CommonConfig.getInstance();
 
     public Map<Integer, PeerHandler> getConnections() {
         return connections;
@@ -31,14 +43,20 @@ public class Peer {
         return connections.get(remotePeerid);
     }
 
-    public Peer (int peerid, String hostName, int portno, boolean hasFile) throws IOException {
-        this.peerid = peerid;
-        this.hostName = hostName;
-        this.portno = portno;
-        this.hasFile = hasFile;
+    public Peer (PeerInfo peerInfo) throws IOException {
+        this.peerid = peerInfo.getPeerid();
+        this.hostName = peerInfo.getHostName();
+        this.portno = peerInfo.getPortno();
+        this.hasFile = peerInfo.hasFile();
+        this.connections = new HashMap<>();
+        this.interestedPeers = new HashSet<>();
+        this.peersBitField = new HashMap<>();
+        this.neighbours = new HashSet<>();
         bitField = new BitField(hasFile);
         peersBitField = new HashMap<>();
         fileHandler = new FileHandler(this);
+        prefferedNeighbourScheduler = new ScheduledThreadPoolExecutor(1);
+        optimisticNeighbourScheduler = new ScheduledThreadPoolExecutor(1);
     }
 
     public void addBitField(int peerid, BitField bitField) {
@@ -101,16 +119,53 @@ public class Peer {
         return neighbours;
     }
 
-    public void setNeighbours(Set<Integer> neighbours) {
+    synchronized public void setNeighbours(Set<Integer> neighbours) {
         this.neighbours = neighbours;
     }
 
     public void selectPreferredNeighbors() {
+        prefferedNeighbourScheduler.scheduleAtFixedRate(() -> {
+            List<Integer> neighboursId = new ArrayList<>(connections.keySet());
+            Set<Integer> prevNeighbour =  this.neighbours;
+            List<Integer> newNeighbour;
+            if (hasFile) {
+                newNeighbour = randomKElements(neighboursId, commonConfig.getNumberOfPreferredNeighbors());
+            } else {
+                neighboursId.sort((Integer p1, Integer p2) -> {
+                    return -1;
+                });
+                newNeighbour = neighboursId.subList(0, commonConfig.getNumberOfPreferredNeighbors());
+            }
+
+
+            this.setNeighbours(new HashSet<>(newNeighbour));
+            new MulticastMessage(Message.unchokeMessage(), this.neighbours
+                    .stream()
+                    .filter(peerid -> !prevNeighbour.contains(peerid))
+                    .collect(Collectors.toSet())).start();
+        }, 1, commonConfig.getUnchokingInterval(), TimeUnit.SECONDS);
 
     }
 
     public void selectOptimisticUnchokedNeighbor() {
 
+        if (connections.size() == commonConfig.getNumberOfPreferredNeighbors()) {
+            return;
+        }
+
+        optimisticNeighbourScheduler.scheduleAtFixedRate(() -> {
+            List<Integer> neighboursList = new ArrayList<>(this.connections.keySet());
+            int index = ThreadLocalRandom.current().nextInt(0, connections.size());
+
+            while (this.neighbours.contains(neighboursList.get(index))) {
+                index = ThreadLocalRandom.current().nextInt(0, connections.size());
+            }
+
+            this.optimisticNeighbour = neighboursList.get(index);
+            Set<Integer> optimisticNeighbourSet = new HashSet<>();
+            optimisticNeighbourSet.add(optimisticNeighbour);
+            new MulticastMessage(Message.unchokeMessage(), optimisticNeighbourSet).start();
+        }, 1, commonConfig.getOptimisticUnchokingInterval(), TimeUnit.SECONDS);
     }
 
     public BitField getBitField() {
@@ -118,4 +173,22 @@ public class Peer {
     }
 
     public FileHandler getFileHandler() { return fileHandler; }
+
+    private List<Integer> randomKElements(List<Integer> list, int K) {
+        // create a temporary list for storing
+        // selected element
+        List<Integer> newList = new ArrayList<>();
+        for (int i = 0; i < K; i++) {
+            // take a random index between 0 to size
+            // of given List
+            int randomIndex = ThreadLocalRandom.current().nextInt(list.size());
+
+            // add element in temporary list
+            newList.add(list.get(randomIndex));
+
+            // Remove selected element from orginal list
+            list.remove(randomIndex);
+        }
+        return newList;
+    }
 }
