@@ -18,7 +18,7 @@ public class LoadConfig {
     final static String FILESIZE = "FileSize";
     final static String PIECESIZE = "PieceSize";
 
-    public static CommonConfig loadCommonConfig () throws IOException {
+    public static CommonConfig loadCommonConfig() throws IOException {
         File file = new File(COMMON_CONFIG_FILE);
         CommonConfig commonConfig = CommonConfig.getInstance();
         Map<String, String> commonInfo = new HashMap<>();
@@ -31,8 +31,8 @@ public class LoadConfig {
                 continue;
             }
 
-             splitInfo = info.split(" ", 2);
-             commonInfo.put(splitInfo[0], splitInfo[1]);
+            splitInfo = info.split(" ", 2);
+            commonInfo.put(splitInfo[0], splitInfo[1]);
         }
 
         if (commonInfo.containsKey(NUMBER_OF_PREFERRED_NEIGHBORS)) {
@@ -74,7 +74,7 @@ public class LoadConfig {
         return commonConfig;
     }
 
-    public static List<PeerInfo> loadPeersInfo () throws IOException {
+    public static List<PeerInfo> loadPeersInfo() throws IOException {
         File file = new File(PEER_INFO_FILE);
         List<PeerInfo> peersList = new ArrayList<>();
 
@@ -92,14 +92,14 @@ public class LoadConfig {
             String host = peerInfoArray[1];
             int portNo = Integer.parseInt(peerInfoArray[2]);
             boolean hasFile = Integer.parseInt(peerInfoArray[3]) == 1;
-            PeerInfo  peerInfo = new PeerInfo(peerId, host, portNo, hasFile);
+            PeerInfo peerInfo = new PeerInfo(peerId, host, portNo, hasFile);
             peersList.add(peerInfo);
         }
 
         return peersList;
     }
 
-    public static PeerInfo getCurrentPeer (int peerid) throws IOException {
+    public static PeerInfo getCurrentPeer(int peerid) throws IOException {
         List<PeerInfo> peers = loadPeersInfo();
 
         for (PeerInfo peer : peers) {
