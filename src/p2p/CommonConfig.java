@@ -24,7 +24,7 @@ public class CommonConfig {
     }
 
     public void setNumberOfPreferredNeighbors(int numberOfPreferredNeighbors) {
-        this.numberOfPreferredNeighbors = commonConfig.numberOfPreferredNeighbors;
+        this.numberOfPreferredNeighbors = numberOfPreferredNeighbors;
     }
 
     public int getUnchokingInterval() {
