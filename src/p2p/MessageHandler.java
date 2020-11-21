@@ -22,7 +22,7 @@ public class MessageHandler extends Thread {
     public void run() {
         switch (messageType) {
             case BITFIELD:
-                logger.log(Level.FINE, "Received 'Bitfield' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Received 'Bitfield' Message from [" + remotePeerid + "]");
                 //add received bit field to current peer's remotePeer bitfield map
                 BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
                 currentPeer.addPeersBitField(remotePeerid, receivedBitField);
@@ -56,7 +56,7 @@ public class MessageHandler extends Thread {
                 // process piece and store
                 int pieceIndex = Piece.getPieceIndex(messagePayload);
                 Piece.store(Piece.getPieceContent(messagePayload), pieceIndex);
-                new BroadcastMessage(Message.haveMessage(pieceIndex)).run();
+                new MulticastMessage(Message.haveMessage(pieceIndex)).run();
                 //send request message for piece if any or not choked (if no piece send not interested)
                 break;
             }

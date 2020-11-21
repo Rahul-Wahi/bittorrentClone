@@ -54,7 +54,6 @@ public class CommonConfig {
     public int getFileSize() { return commonConfig.fileSize; }
 
     public void setFileSize(int fileSize) {
-        System.out.println("file " + fileSize);
         commonConfig.fileSize = fileSize;
     }
 
@@ -63,12 +62,10 @@ public class CommonConfig {
     }
 
     public void setPieceSize(int pieceSize) {
-        System.out.println("file " + pieceSize);
         commonConfig.pieceSize = pieceSize;
     }
 
     public int getNumOfPieces() {
-        System.out.println("hello " + commonConfig.fileSize + " " + pieceSize + " " +(int) Math.ceil((double) fileSize / (double) pieceSize));
         return (int) Math.ceil((double) commonConfig.fileSize / (double) commonConfig.pieceSize);
     }
 
