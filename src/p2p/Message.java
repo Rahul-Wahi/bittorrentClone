@@ -43,6 +43,10 @@ public class Message {
         return message(MessageType.HAVE, indexBytes);
     }
 
+    public static byte[] unchokeMessage() {
+        return message(MessageType.UNCHOKE);
+    }
+
     //choke, unchoke, interested, not interested will use this method as they dont have payload
     public static byte[] message(MessageType messageType) {
         byte[] messageTypeByte = ByteConversionUtil.stringToBytes(Integer.toString(messageType.getValue()));

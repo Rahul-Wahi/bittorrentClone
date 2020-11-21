@@ -15,7 +15,6 @@ public class BitField {
     }
 
     public BitField (boolean hasFile) {
-        System.out.println(commonConfig.getNumOfPieces());
         bitField = new boolean[commonConfig.getNumOfPieces()];
         setBitField(hasFile);
     }

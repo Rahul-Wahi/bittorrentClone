@@ -41,6 +41,9 @@ import java.util.logging.Level;
             int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] is connected from ["
                     + remotePeerid + "]");
+            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handhsake message : "
+                    + ByteConversionUtil.bytesToString(receivedHandshakeByte));
+
 
             currentPeer.addConnection(remotePeerid, this);
             //reply with handshake message
@@ -52,12 +55,6 @@ import java.util.logging.Level;
             if (bitField.getNumOfSetBit() > 0) {
                 sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
             }
-
-
-            byte[] recivedBitFieldMessage = new byte[307];
-            byte[] receivedBitField = new byte[306];
-            System.arraycopy(recivedBitFieldMessage, 1, receivedBitField, 0, 306);
-            System.out.println(ByteConversionUtil.bytesToString(receivedBitField));
 
             while (!peerProcess.getTerminate()) {
                 byte[] messageLengthByte = new byte[4];
