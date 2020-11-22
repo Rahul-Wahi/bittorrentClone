@@ -143,11 +143,19 @@ public class Peer {
             }
             this.setNeighbours(new HashSet<>(newNeighbour));
 
+            //unchoke neighbours if not already
             new MulticastMessage(Message.unchokeMessage(), this.neighbours
                     .stream()
                     .filter(peerid -> !(prevNeighbour.contains(peerid)))
                     .collect(Collectors.toSet())).start();
+
+            //choke old neighbours if not selelected again
+            new MulticastMessage(Message.chokeMessage(), prevNeighbour
+                    .stream()
+                    .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
+                    .collect(Collectors.toSet())).start();
         }, 1, commonConfig.getUnchokingInterval(), TimeUnit.SECONDS);
+
 
     }
 
@@ -170,8 +178,16 @@ public class Peer {
             this.optimisticNeighbour = neighboursList.get(index);
             Set<Integer> optimisticNeighbourSet = new HashSet<>();
             optimisticNeighbourSet.add(optimisticNeighbour);
+            Set<Integer> prevOptimisticNeighbourSet = new HashSet<>();
+            prevOptimisticNeighbourSet.add(prevOptimisticNeighbour);
             new MulticastMessage(Message.unchokeMessage(), optimisticNeighbourSet.stream()
-                    .filter(peerid -> !(peerid == prevOptimisticNeighbour))
+                    .filter(peerid -> !(peerid.equals(prevOptimisticNeighbour)))
+                    .collect(Collectors.toSet())).start();
+
+            //choke old neighbours if not selelected again
+            new MulticastMessage(Message.chokeMessage(), prevOptimisticNeighbourSet
+                    .stream()
+                    .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
                     .collect(Collectors.toSet())).start();
         }, 1, commonConfig.getOptimisticUnchokingInterval(), TimeUnit.SECONDS);
     }
