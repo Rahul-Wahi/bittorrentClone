@@ -7,21 +7,23 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.io.DataInputStream;
 
 /**
  * A handler thread class.  Handlers are spawned from the listening
  * loop and are responsible for dealing with a single client's requests.
  */
     class ClientHandler extends Thread implements PeerHandler {
-    //private String message;    //message received from the client
-    private String MESSAGE;    //uppercase message send to the client
-    private Socket connection;
+    private final Socket connection;
     private ObjectInputStream in;    //stream read from the socket
     private ObjectOutputStream out;    //stream write to the socket
-    private int no;        //The index number of the client
-    private Peer currentPeer;
+    private final Peer currentPeer;
+    Integer remotePeerid;
     Logger logger = Logging.getLOGGER();
+    CommonConfig commonConfig = CommonConfig.getInstance();
     private boolean currentPeerChoked;
+    int totalByteSent;
+    int totalByteReceived;
 
     public ClientHandler(Socket connection, Peer currentPeer) {
         this.connection = connection;
@@ -37,8 +39,9 @@ import java.util.logging.Level;
             in = new ObjectInputStream(connection.getInputStream());
 
             byte[] receivedHandshakeByte = new byte[32];
-            in.read(receivedHandshakeByte);
+            readMessage(receivedHandshakeByte);
             int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
+            this.remotePeerid = remotePeerid;
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] is connected from ["
                     + remotePeerid + "]");
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handhsake message : "
@@ -51,22 +54,36 @@ import java.util.logging.Level;
 
             BitField bitField = currentPeer.getBitField();
 
-            //send bit field message
-            if (bitField.getNumOfSetBit() > 0) {
-                sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
-            }
 
-            while (!peerProcess.getTerminate()) {
+            sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
+
+            while (!peerProcess.shouldTerminate()) {
                 byte[] messageLengthByte = new byte[4];
                 byte[] messageType = new byte[1];
-                in.read(messageLengthByte);
-                in.read(messageType);
+                int byteRead = readMessage(messageLengthByte);
+
+                if (byteRead == -1) {
+                    currentPeer.cleanup();
+                    break;
+                }
+
+                byteRead = readMessage(messageType);
+
+                if (byteRead == -1) {
+                    currentPeer.cleanup();
+                    break;
+                }
+
                 int messageLength = ByteConversionUtil.bytesToInt(messageLengthByte);
                 byte[] messagePayload = new byte[messageLength - messageType.length];
-                System.out.println("len " + messageLength + " t " + ByteConversionUtil.bytesToString(messageType));
-                in.read(messagePayload);
-                logger.log(Level.INFO, ByteConversionUtil.bytesToString(messageType));
+                byteRead = readMessage(messagePayload);
 
+                if (byteRead == -1) {
+                    currentPeer.cleanup();
+                    break;
+                }
+
+                logger.log(Level.FINE, " Total Received Bytes so far : " + totalByteReceived);
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
 
@@ -80,7 +97,7 @@ import java.util.logging.Level;
                 out.close();
                 connection.close();
             } catch (IOException ioException) {
-                System.out.println("Disconnect with Client " + no);
+                System.out.println("Disconnect with Client ");
             }
         }
     }
@@ -90,21 +107,48 @@ import java.util.logging.Level;
         try {
             out.writeObject(msg);
             out.flush();
-            System.out.println("Send message: " + msg + " to Client " + no);
+            System.out.println("Send message: " + msg + " to Client ");
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
     }
 
-    @Override
+    public int readMessage(byte[] msg) {
+        int bytesRead = 0;
+        try {
+            while (bytesRead != msg.length && bytesRead != -1) {
+                bytesRead += in.read(msg, bytesRead, msg.length - bytesRead);
+            }
+
+            totalByteReceived += bytesRead;
+            //logger.log(Level.INFO, "read msg " + msg.length + " Total Received Bytes " + totalByteReceived);
+            return bytesRead;
+        } catch (IOException ioException) {
+            //ioException.printStackTrace();
+        }
+
+        if (bytesRead == 0) {
+            bytesRead = -1;
+        }
+        return bytesRead;
+    }
+        @Override
     //send a message to the output stream
     synchronized public void sendMessage(byte[] msg) {
         try {
+            totalByteSent += msg.length;
+            //logger.log(Level.INFO, "send msg " + msg.length + " Total Sent Bytes " + totalByteSent);
             out.write(msg);
             out.flush();
         } catch (IOException ioException) {
-            ioException.printStackTrace();
+            //ioException.printStackTrace();
         }
+    }
+
+    @Override
+    public synchronized void sendInterestedMessage() {
+        sendMessage(Message.message(MessageType.INTERESTED));
+        currentPeer.addInterestingPeer(remotePeerid);
     }
 
     @Override
@@ -113,20 +157,27 @@ import java.util.logging.Level;
     }
 
     @Override
+    public synchronized void sendNotInterestedMessage() {
+        sendMessage(Message.message(MessageType.NOTINTRESTED));
+        currentPeer.removeInterestingPeer(remotePeerid);
+    }
+
+    @Override
     public boolean isCurrentPeerChoked() {
         return currentPeerChoked;
     }
 
-    //receive a message to the output stream
-    public void receiveMessage() {
-        try {
-            //receive the message sent from the client
-            MESSAGE = (String) in.readObject();
-            logger.log(Level.INFO,"Received message");
-        } catch (IOException | ClassNotFoundException ioException) {
-            ioException.printStackTrace();
+    @Override
+    public void sendRequestMessage() {
+        Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
+        if (nextPieceIndex == null) {
+            this.sendNotInterestedMessage();
+            return;
+        }
+
+        if (!this.isCurrentPeerChoked()) {
+            this.sendMessage(Message.requestMessage(nextPieceIndex));
         }
     }
-
 }
 

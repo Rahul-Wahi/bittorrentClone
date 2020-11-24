@@ -9,4 +9,10 @@ public interface PeerHandler {
     void setIsCurrentPeerChoked (boolean isCurrentPeerChoked);
 
     boolean isCurrentPeerChoked();
+
+    void sendInterestedMessage();
+
+    void sendNotInterestedMessage();
+
+    void sendRequestMessage();
 }

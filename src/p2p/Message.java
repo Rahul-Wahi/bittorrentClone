@@ -10,7 +10,7 @@ public class Message {
     private static final String HEADER = "P2PFILESHARINGPROJ";
     private static final String ENCODING = "UTF-8";
     private static final int NUM_OF_ZERO_BITS = 10;
-    Logger logger = Logging.getLOGGER();
+    static Logger logger = Logging.getLOGGER();
 
     public byte[] handshakeMessage(int peerid) {
         byte[] headerBytes = ByteConversionUtil.stringToBytes(HEADER);
@@ -51,6 +51,27 @@ public class Message {
         return message(MessageType.CHOKE);
     }
 
+    public static byte[] requestMessage(int index) {
+        byte[] indexBytes = ByteConversionUtil.intToBytes(index);
+        return message(MessageType.REQUEST, indexBytes);
+    }
+
+    public static byte[] pieceMessage(int pieceIndex) {
+        byte[] pieceIndexByte = ByteConversionUtil.intToBytes(pieceIndex);
+        byte[] pieceContent = Piece.get(pieceIndex);
+        byte[] piece = new byte[pieceIndexByte.length + pieceContent.length];
+        System.arraycopy(pieceIndexByte, 0, piece, 0, pieceIndexByte.length);
+        System.arraycopy(pieceContent, 0, piece, pieceIndexByte.length, pieceContent.length);
+        logger.log(Level.FINE, "PM " + piece.length + " pi " + pieceIndexByte.length + " pc " + pieceContent.length);
+        return message(MessageType.PIECE, piece);
+    }
+
+    public static MessageType getMessageType(byte[] message) {
+        byte[] messageType = new byte[1];
+        System.arraycopy(message, 4, messageType, 0, messageType.length);
+        return MessageType.values()[Integer.parseInt(ByteConversionUtil.bytesToString(messageType))];
+    }
+
     //choke, unchoke, interested, not interested will use this method as they dont have payload
     public static byte[] message(MessageType messageType) {
         byte[] messageTypeByte = ByteConversionUtil.stringToBytes(Integer.toString(messageType.getValue()));
@@ -63,6 +84,8 @@ public class Message {
         byte[] messageTypeByte = ByteConversionUtil.stringToBytes(Integer.toString(messageType.getValue()));
         byte[] payloadBytes = ByteConversionUtil.stringToBytes(payload);
         byte[] messageLengthBytes = ByteConversionUtil.intToBytes(messageTypeByte.length + payloadBytes.length);
+        logger.log(Level.FINE, "Message Type : " + ByteConversionUtil.bytesToString(messageTypeByte) + " Len "
+                + ByteConversionUtil.bytesToInt(messageLengthBytes));
         return createMessage(messageLengthBytes, messageTypeByte, payloadBytes);
     }
 

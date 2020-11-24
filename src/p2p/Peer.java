@@ -2,7 +2,6 @@ package p2p;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -11,6 +10,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -25,12 +25,15 @@ public class Peer {
     private int numberOfPieces;
     private final BitField bitField;
     private Map<Integer, BitField> peersBitField;
-    private Set<Integer> interestedPeers;
-    private Set<Integer> neededPieces;
+    private Set<Integer> interestedPeers; // peers which are interested in this peer data
+    private final Set<Integer> interestingPeers; // peers in which this peer is interested
+    private final List<Integer> neededPieces;
+    private Set<Integer> requestedPieces;
     private final FileHandler fileHandler;
     private final Map<Integer, PeerHandler> connections;
     private final ScheduledThreadPoolExecutor prefferedNeighbourScheduler;
     private final ScheduledThreadPoolExecutor optimisticNeighbourScheduler;
+    private final ReentrantLock reentrantLock;
     CommonConfig commonConfig = CommonConfig.getInstance();
     Logger logger = Logging.getLOGGER();
 
@@ -55,11 +58,106 @@ public class Peer {
         this.interestedPeers = new HashSet<>();
         this.peersBitField = new HashMap<>();
         this.neighbours = new HashSet<>();
+        this.interestedPeers = new HashSet<>();
+        this.interestingPeers = new HashSet<>();
+        this.requestedPieces = new HashSet<>();
+        this.neededPieces = new ArrayList<>();
         bitField = new BitField(hasFile);
         peersBitField = new HashMap<>();
         fileHandler = new FileHandler(this);
         prefferedNeighbourScheduler = new ScheduledThreadPoolExecutor(1);
         optimisticNeighbourScheduler = new ScheduledThreadPoolExecutor(1);
+        reentrantLock = new ReentrantLock();
+        setNeededPieces();
+    }
+
+    public void addNeededPiece(int pieceIndex) {
+        reentrantLock.lock();
+        try {
+            this.neededPieces.add(pieceIndex);
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    public void setNeededPieces() {
+        String bitFieldString = bitField.getBitFieldString();
+        reentrantLock.lock();
+        try {
+            for (int i = 0; i < bitFieldString.length(); i++) {
+                if (bitFieldString.charAt(i) == '0') {
+                    this.neededPieces.add(i);
+                }
+            }
+        } finally {
+            reentrantLock.unlock();
+        }
+
+    }
+    public void removeNeededPiece(Integer pieceIndex) {
+        reentrantLock.lock();
+        try {
+            this.neededPieces.remove(pieceIndex);
+            this.requestedPieces.remove(pieceIndex);
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    public Integer getNeededPiece(int index) {
+        return this.neededPieces.get(index);
+    }
+
+    public List<Integer> getNeededPieces() {
+        return this.neededPieces;
+    }
+
+    public void setRequestedPieces(Set<Integer> requestedPieces) {
+        reentrantLock.lock();
+        try {
+            this.requestedPieces = requestedPieces;
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    public void clearRequestedPieces() {
+        reentrantLock.lock();
+        try {
+            this.requestedPieces.clear();
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    public Integer selectPiece(int remotePeerid) {
+        reentrantLock.lock();
+        Integer randomIndex = null;
+        try {
+            if (neededPieces.size() == 0 || (neededPieces.size() == requestedPieces.size())) {
+                return randomIndex;
+            }
+
+            randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
+            BitField remoteBitField = this.getPeerBitField(remotePeerid);
+            Set<Integer> remotePeerPieces = new HashSet<>(remoteBitField.getHavePieces());
+            remotePeerPieces.removeAll(requestedPieces);
+
+            if (remotePeerPieces.size() == 0) {
+                return randomIndex;
+            }
+
+            while (requestedPieces.contains(neededPieces.get(randomIndex)) ||
+                    !remotePeerPieces.contains(neededPieces.get(randomIndex)) ) {
+                randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
+            }
+
+            requestedPieces.add(neededPieces.get(randomIndex));
+        } finally {
+            reentrantLock.unlock();
+        }
+
+        return neededPieces.get(randomIndex);
     }
 
     public void addBitField(int peerid, BitField bitField) {
@@ -84,6 +182,18 @@ public class Peer {
 
     synchronized public void removeInterestedPeers(int remotePeerid) {
         interestedPeers.remove(remotePeerid);
+    }
+
+    public Set<Integer> getInterestingPeers() { return interestingPeers; }
+
+    synchronized public void addInterestingPeer(Integer remotePeerid) { this.interestingPeers.add(remotePeerid); }
+
+    synchronized public void removeInterestingPeer(Integer remotePeerid) {
+        this.interestingPeers.remove(remotePeerid);
+
+        if (this.interestingPeers.size() == 0) {
+            this.setHasFile(true);
+        }
     }
 
     public int getPeerid() {
@@ -128,7 +238,7 @@ public class Peer {
 
     public void selectPreferredNeighbors() {
         prefferedNeighbourScheduler.scheduleAtFixedRate(() -> {
-            logger.log(Level.INFO, "Select Preferred Neighbours");
+            logger.log(Level.INFO, "Select Pref Neighbours");
             List<Integer> neighboursId = new ArrayList<>(interestedPeers);
             Set<Integer> prevNeighbour = new HashSet<>(this.neighbours);
             List<Integer> newNeighbour;
@@ -149,7 +259,7 @@ public class Peer {
                     .filter(peerid -> !(prevNeighbour.contains(peerid)))
                     .collect(Collectors.toSet())).start();
 
-            //choke old neighbours if not selelected again
+            //choke old neighbours if not selected again
             new MulticastMessage(Message.chokeMessage(), prevNeighbour
                     .stream()
                     .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
@@ -166,8 +276,6 @@ public class Peer {
             if (neighbours.size() <= commonConfig.getNumberOfPreferredNeighbors()) {
                 return;
             }
-
-            logger.log(Level.INFO, "Select Optimistic Neighboursjhfkjdshfnds");
             List<Integer> neighboursList = new ArrayList<>(interestedPeers);
             int index = ThreadLocalRandom.current().nextInt(0, neighboursList.size());
 
@@ -184,7 +292,7 @@ public class Peer {
                     .filter(peerid -> !(peerid.equals(prevOptimisticNeighbour)))
                     .collect(Collectors.toSet())).start();
 
-            //choke old neighbours if not selelected again
+            //choke old neighbours if not selected again
             new MulticastMessage(Message.chokeMessage(), prevOptimisticNeighbourSet
                     .stream()
                     .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
@@ -198,6 +306,14 @@ public class Peer {
 
     public FileHandler getFileHandler() {
         return fileHandler;
+    }
+
+    public void cleanup() throws IOException {
+        logger.log(Level.INFO, "cleanup");
+        prefferedNeighbourScheduler.shutdownNow();
+        optimisticNeighbourScheduler.shutdownNow();
+        fileHandler.clean();
+
     }
 
     private List<Integer> randomKElements(List<Integer> list, int K) {

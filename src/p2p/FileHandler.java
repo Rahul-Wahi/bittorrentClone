@@ -45,4 +45,8 @@ public class FileHandler {
             reentrantLock.unlock();
         }
     }
+
+    void clean() throws IOException {
+        randomAccessFile.close();
+    }
 }

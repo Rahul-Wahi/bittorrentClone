@@ -1,22 +1,32 @@
 package p2p;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class BitField {
     private Set<Integer> havePieces;
-    private boolean[] bitField;
+    private final boolean[] bitField;
     private int numOfSetBit;
-    private static CommonConfig commonConfig = CommonConfig.getInstance();
+    Peer currentPeer;
+    private static final CommonConfig commonConfig = CommonConfig.getInstance();
 
     public BitField (String bitFieldString) {
         bitField = new boolean[commonConfig.getNumOfPieces()];
+        havePieces = new HashSet<>();
         setBitField(bitFieldString);
     }
 
-    public BitField (boolean hasFile) {
+    public BitField (boolean hasFile) throws IOException {
         bitField = new boolean[commonConfig.getNumOfPieces()];
         setBitField(hasFile);
+    }
+
+    public Set<Integer> getHavePieces() {
+        return havePieces;
     }
 
     public boolean containsInterestedPieces (String receivedBitFieldString) {
@@ -39,20 +49,26 @@ public class BitField {
         return numOfSetBit == bitField.length;
     }
 
-    private void setBitField (String bitFieldString) {
+    private void setBitField (String bitFieldString)  {
         for (int i = 0; i < bitFieldString.length(); i++) {
             if (bitFieldString.charAt(i) == '1') {
                 bitField[i] = true;
                 numOfSetBit++;
+                havePieces.add(i);
             }
+        }
+
+        if (numOfSetBit == bitFieldString.length()) {
+            peerProcess.incrementNoOfPeerWithFile();
         }
     }
 
-    private void setBitField (Boolean hasFile) {
+    private void setBitField (Boolean hasFile) throws IOException {
         if (!hasFile) {
             return;
         }
 
+        peerProcess.incrementNoOfPeerWithFile();
         Arrays.fill(bitField, true);
 
         numOfSetBit = bitField.length;

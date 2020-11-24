@@ -17,11 +17,14 @@ import java.util.logging.Logger;
     Socket requestSocket;           //socket connect to the server
     ObjectOutputStream out;         //stream write to the socket
     ObjectInputStream in;          //stream read from the socket
-    String MESSAGE;                //capitalized message read from the server
     String serverHostname;                // hostname of the target server
     int serverPort;                  //port name of the target server
     Peer currentPeer;
+    Integer remotePeerid;
     boolean currentPeerChoked;
+    int totalByteSent;
+    int totalByteReceived;
+    Logger logger = Logging.getLOGGER();
     public ServerHandler(Peer currentPeer, String hostName, int serverPort) {
         this.currentPeer = currentPeer;
         this.serverHostname = hostName;
@@ -29,8 +32,7 @@ import java.util.logging.Logger;
     }
 
     public void run() {
-        try{
-            Logger logger = Logging.getLOGGER();
+        try {
             Message message = new Message();
             //create a socket to connect to the server
             requestSocket = new Socket(serverHostname, serverPort);
@@ -46,30 +48,48 @@ import java.util.logging.Logger;
             byte[] receivedHandshakeByte = new byte[32];
 
             //receive handshake message
-            in.read(receivedHandshakeByte);
+            readMessage(receivedHandshakeByte);
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handshake message : "
                     + ByteConversionUtil.bytesToString(receivedHandshakeByte));
             int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
-
+            this.remotePeerid = remotePeerid;
             currentPeer.addConnection(remotePeerid, this);
 
             BitField bitField = currentPeer.getBitField();
 
-            //send bit field message
-            if (bitField.getNumOfSetBit() > 0) {
-                sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
-            }
+            sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
 
-            while (!peerProcess.getTerminate()) {
+            while (!peerProcess.shouldTerminate()) {
                 byte[] messageLengthByte = new byte[4];
                 byte[] messageType = new byte[1];
-                in.read(messageLengthByte);
-                in.read(messageType);
+                int byteRead = readMessage(messageLengthByte);
+                logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
+
+                if (byteRead == -1) {
+                    currentPeer.cleanup();
+                    break;
+                }
+
+                byteRead = readMessage(messageType);
+
+                if (byteRead == -1) {
+                    currentPeer.cleanup();
+                    break;
+                }
+
                 int messageLength = ByteConversionUtil.bytesToInt(messageLengthByte);
                 byte[] messagePayload = new byte[messageLength - messageType.length];
-                System.out.println("len " + messageLength + " t " + ByteConversionUtil.bytesToString(messageType));
-                in.read(messagePayload);
-                logger.log(Level.INFO, ByteConversionUtil.bytesToString(messageType));
+                byteRead = readMessage(messagePayload);
+
+                if (byteRead == -1) {
+                    currentPeer.cleanup();
+                    break;
+                }
+
+                if (totalByteReceived == 10004864) {
+                    System.out.println("here");
+                }
+                logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
 
@@ -80,7 +100,7 @@ import java.util.logging.Logger;
             System.err.println("You are trying to connect to an unknown host!");
         }
         catch(IOException ioException){
-            ioException.printStackTrace();
+            //ioException.printStackTrace();
         }
         finally {
             //Close connections
@@ -90,7 +110,7 @@ import java.util.logging.Logger;
                 requestSocket.close();
             }
             catch(IOException ioException) {
-                ioException.printStackTrace();
+                //ioException.printStackTrace();
             }
         }
     }
@@ -106,21 +126,72 @@ import java.util.logging.Logger;
         }
     }
 
+    public int readMessage(byte[] msg) {
+        int bytesRead = 0;
+        try {
+            while (bytesRead != msg.length && bytesRead != -1) {
+                int read = 0;
+                //System.out.print("msg len " + msg.length);
+                read = in.read(msg, bytesRead, msg.length - bytesRead);
+                bytesRead += read;
+                //System.out.println(" off " + bytesRead
+                  //      + " len " + (msg.length - bytesRead));
+            }
+
+            totalByteReceived += bytesRead;
+            return bytesRead;
+        } catch (IOException ioException) {
+            //ioException.printStackTrace();
+        }
+
+        if (bytesRead == 0) {
+            bytesRead = -1;
+        }
+        return bytesRead;
+    }
+
     @Override
     public synchronized void sendMessage(byte[] msg) {
         try{
+            totalByteSent += msg.length;
+            logger.log(Level.FINE, "send msg " + msg.length + " Total Bytes Sent so far" + totalByteSent);
             //stream write the message
             out.write(msg);
             out.flush();
         }
         catch(IOException ioException){
-            ioException.printStackTrace();
+            //ioException.printStackTrace();
         }
+    }
+
+    @Override
+    public synchronized void sendInterestedMessage() {
+        sendMessage(Message.message(MessageType.INTERESTED));
+        currentPeer.addInterestingPeer(remotePeerid);
+    }
+
+    @Override
+    public synchronized void sendNotInterestedMessage() {
+        sendMessage(Message.message(MessageType.INTERESTED));
+        currentPeer.removeInterestingPeer(remotePeerid);
     }
 
     @Override
     public synchronized void setIsCurrentPeerChoked(boolean isCurrentPeerChoked) {
         this.currentPeerChoked = isCurrentPeerChoked;
+    }
+
+    @Override
+    public void sendRequestMessage() {
+        Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
+        if (nextPieceIndex == null) {
+            this.sendNotInterestedMessage();
+            return;
+        }
+
+        if (!this.isCurrentPeerChoked()) {
+            this.sendMessage(Message.requestMessage(nextPieceIndex));
+        }
     }
 
     @Override
