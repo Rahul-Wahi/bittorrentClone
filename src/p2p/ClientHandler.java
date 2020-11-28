@@ -83,7 +83,7 @@ import java.io.DataInputStream;
                     break;
                 }
 
-                logger.log(Level.FINE, " Total Received Bytes so far : " + totalByteReceived);
+                //logger.log(Level.FINE, " Total Received Bytes so far : " + totalByteReceived);
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
 

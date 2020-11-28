@@ -63,7 +63,7 @@ import java.util.logging.Logger;
                 byte[] messageLengthByte = new byte[4];
                 byte[] messageType = new byte[1];
                 int byteRead = readMessage(messageLengthByte);
-                logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
+                //logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
 
                 if (byteRead == -1) {
                     currentPeer.cleanup();
@@ -89,7 +89,7 @@ import java.util.logging.Logger;
                 if (totalByteReceived == 10004864) {
                     System.out.println("here");
                 }
-                logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
+                //logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
 
@@ -154,7 +154,7 @@ import java.util.logging.Logger;
     public synchronized void sendMessage(byte[] msg) {
         try{
             totalByteSent += msg.length;
-            logger.log(Level.FINE, "send msg " + msg.length + " Total Bytes Sent so far" + totalByteSent);
+            //logger.log(Level.FINE, "send msg " + msg.length + " Total Bytes Sent so far" + totalByteSent);
             //stream write the message
             out.write(msg);
             out.flush();

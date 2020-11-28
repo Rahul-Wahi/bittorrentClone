@@ -247,12 +247,20 @@ public class Peer {
                 newNeighbour = randomKElements(neighboursId, commonConfig.getNumberOfPreferredNeighbors());
             } else {
                 neighboursId.sort((Integer p1, Integer p2) -> {
+                    //use download speed function here for sort
                     return -1;
                 });
                 newNeighbour = neighboursId.subList(0, Math.min(commonConfig.getNumberOfPreferredNeighbors(), neighboursId.size()));
             }
             this.setNeighbours(new HashSet<>(newNeighbour));
+            List<String> intString = new ArrayList<>();
+            for (Integer i : this.neighbours) {
+                intString.add(String.valueOf(i));
+            }
 
+            String result = String.join(",", intString);
+
+            logger.log(Level.INFO, result);
             //unchoke neighbours if not already
             new MulticastMessage(Message.unchokeMessage(), this.neighbours
                     .stream()
@@ -312,7 +320,7 @@ public class Peer {
         logger.log(Level.INFO, "cleanup");
         prefferedNeighbourScheduler.shutdownNow();
         optimisticNeighbourScheduler.shutdownNow();
-        fileHandler.clean();
+        //fileHandler.clean();
 
     }
 

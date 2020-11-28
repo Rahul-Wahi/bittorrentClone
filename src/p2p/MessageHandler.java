@@ -44,7 +44,7 @@ public class MessageHandler extends Thread {
                     peerProcess.incrementNoOfPeerWithFile();
                 }
                 //evaluateRemoteBitField(remoteBitField);//change and check just one bit
-                evaluateRemoteBitField(remoteBitField);
+                evaluateRemoteBitField(pieceIndex);
                 break;
             }
 
