@@ -7,19 +7,20 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+
 public class LoadConfig {
     final static String COMMON_CONFIG_FILE = "Common.cfg";
     final static String PEER_INFO_FILE = "PeerInfo.cfg";
-    final static String NUMBER_OF_PREFERRED_NEIGHBORS = "numberOfPreferredNeighbors";
-    final static String UNCHOKING_INTERVAL = "unchokingInterval";
-    final static String OPTIMISTIC_UNCHOKING_INTERVAL = "optimisticUnchokingInterval";
-    final static String FILENAME = "fileName";
-    final static String FILESIZE = "fileSize";
-    final static String PIECESIZE = "pieceSize";
+    final static String NUMBER_OF_PREFERRED_NEIGHBORS = "NumberOfPreferredNeighbors";
+    final static String UNCHOKING_INTERVAL = "UnchokingInterval";
+    final static String OPTIMISTIC_UNCHOKING_INTERVAL = "OptimisticUnchokingInterval";
+    final static String FILENAME = "FileName";
+    final static String FILESIZE = "FileSize";
+    final static String PIECESIZE = "PieceSize";
 
-    public static CommonConfig loadCommonConfig () throws IOException {
+    public static CommonConfig loadCommonConfig() throws IOException {
         File file = new File(COMMON_CONFIG_FILE);
-        CommonConfig commonConfig = new CommonConfig();
+        CommonConfig commonConfig = CommonConfig.getInstance();
         Map<String, String> commonInfo = new HashMap<>();
         BufferedReader br = new BufferedReader(new FileReader(file));
 
@@ -30,8 +31,8 @@ public class LoadConfig {
                 continue;
             }
 
-             splitInfo = info.split(" ", 2);
-             commonInfo.put(splitInfo[0], splitInfo[1]);
+            splitInfo = info.split(" ", 2);
+            commonInfo.put(splitInfo[0], splitInfo[1]);
         }
 
         if (commonInfo.containsKey(NUMBER_OF_PREFERRED_NEIGHBORS)) {
@@ -73,35 +74,35 @@ public class LoadConfig {
         return commonConfig;
     }
 
-    public static List<Peer> loadPeersInfo () throws IOException {
+    public static List<PeerInfo> loadPeersInfo() throws IOException {
         File file = new File(PEER_INFO_FILE);
-        List<Peer> peersList = new ArrayList<>();
+        List<PeerInfo> peersList = new ArrayList<>();
 
         BufferedReader br = new BufferedReader(new FileReader(file));
 
         String info;
-        String[] peerInfo;
+        String[] peerInfoArray;
         while ((info = br.readLine()) != null) {
             if (info.equals("")) {
                 continue;
             }
 
-            peerInfo = info.split(" ", 4);
-            int peerId = Integer.parseInt(peerInfo[0]);
-            String host = peerInfo[1];
-            int portNo = Integer.parseInt(peerInfo[2]);
-            boolean hasFile = Integer.parseInt(peerInfo[3]) == 1;
-            Peer peer = new Peer(peerId, host, portNo, hasFile);
-            peersList.add(peer);
+            peerInfoArray = info.split(" ", 4);
+            int peerId = Integer.parseInt(peerInfoArray[0]);
+            String host = peerInfoArray[1];
+            int portNo = Integer.parseInt(peerInfoArray[2]);
+            boolean hasFile = Integer.parseInt(peerInfoArray[3]) == 1;
+            PeerInfo peerInfo = new PeerInfo(peerId, host, portNo, hasFile);
+            peersList.add(peerInfo);
         }
 
         return peersList;
     }
 
-    public static Peer getCurrentPeer (int peerid) throws IOException {
-        List<Peer> peers = loadPeersInfo();
+    public static PeerInfo getCurrentPeer(int peerid) throws IOException {
+        List<PeerInfo> peers = loadPeersInfo();
 
-        for (Peer peer : peers) {
+        for (PeerInfo peer : peers) {
             if (peer.getPeerid() == peerid) {
                 return peer;
             }

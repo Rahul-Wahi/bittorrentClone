@@ -1,15 +1,26 @@
 package p2p;
 
 public class CommonConfig {
-    int numberOfPreferredNeighbors;
-    int unchokingInterval;
-    int optimisticUnchokingInterval;
-    String fileName;
-    int fileSize;
-    int pieceSize;
+    private int numberOfPreferredNeighbors;
+    private int unchokingInterval;
+    private int optimisticUnchokingInterval;
+    private String fileName;
+    private int fileSize;
+    private int pieceSize;
+    private static CommonConfig commonConfig = null;
+    private CommonConfig() {
 
+    }
+
+    //static method to create instance of Singleton class
+    public static CommonConfig getInstance() {
+        if (commonConfig == null)
+            commonConfig = new CommonConfig();
+
+        return commonConfig;
+    }
     public int getNumberOfPreferredNeighbors() {
-        return numberOfPreferredNeighbors;
+        return commonConfig.numberOfPreferredNeighbors;
     }
 
     public void setNumberOfPreferredNeighbors(int numberOfPreferredNeighbors) {
@@ -17,7 +28,7 @@ public class CommonConfig {
     }
 
     public int getUnchokingInterval() {
-        return unchokingInterval;
+        return commonConfig.unchokingInterval;
     }
 
     public void setUnchokingInterval(int unchokingInterval) {
@@ -37,15 +48,13 @@ public class CommonConfig {
     }
 
     public void setFileName(String fileName) {
-        this.fileName = fileName;
+        commonConfig.fileName = fileName;
     }
 
-    public int getFileSize() {
-        return fileSize;
-    }
+    public int getFileSize() { return commonConfig.fileSize; }
 
     public void setFileSize(int fileSize) {
-        this.fileSize = fileSize;
+        commonConfig.fileSize = fileSize;
     }
 
     public int getPieceSize() {
@@ -53,8 +62,11 @@ public class CommonConfig {
     }
 
     public void setPieceSize(int pieceSize) {
-        this.pieceSize = pieceSize;
+        commonConfig.pieceSize = pieceSize;
     }
 
+    public int getNumOfPieces() {
+        return (int) Math.ceil((double) commonConfig.fileSize / (double) commonConfig.pieceSize);
+    }
 
 }
