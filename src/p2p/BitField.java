@@ -20,8 +20,9 @@ public class BitField {
         setBitField(bitFieldString);
     }
 
-    public BitField (boolean hasFile) throws IOException {
+    public BitField (boolean hasFile) {
         bitField = new boolean[commonConfig.getNumOfPieces()];
+        havePieces = new HashSet<>();
         setBitField(hasFile);
     }
 
@@ -42,6 +43,7 @@ public class BitField {
         if (!bitField[pieceIndex]) {
             numOfSetBit++;
             bitField[pieceIndex] = true;
+            havePieces.add(pieceIndex);
         }
     }
 
@@ -63,7 +65,7 @@ public class BitField {
         }
     }
 
-    private void setBitField (Boolean hasFile) throws IOException {
+    private void setBitField (Boolean hasFile) {
         if (!hasFile) {
             return;
         }
@@ -72,6 +74,10 @@ public class BitField {
         Arrays.fill(bitField, true);
 
         numOfSetBit = bitField.length;
+
+        for (int i = 0; i < bitField.length; i++) {
+            havePieces.add(i);
+        }
     }
 
     public String getBitFieldString () {
