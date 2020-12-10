@@ -1,5 +1,6 @@
 package p2p;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -16,20 +17,20 @@ public class MulticastMessage extends Thread {
     public MulticastMessage(byte[] message) {
         this.message = message;
         this.messageType = Message.getMessageType(message);
-        nodes = peerProcess.getCurrentPeer().getConnections().keySet();
+        nodes = new HashSet<>(peerProcess.getCurrentPeer().getConnections().keySet());
     }
 
     //only to provided nodes
     public MulticastMessage(byte[] message, Set<Integer> nodes) {
         this.message = message;
-        this.nodes = nodes;
+        this.nodes = new HashSet<>(nodes);
         this.messageType = Message.getMessageType(message);
     }
 
     //only to provided nodes
     public MulticastMessage(MessageType messageType, Set<Integer> nodes) {
         this.messageType = messageType;
-        this.nodes = nodes;
+        this.nodes = new HashSet<>(nodes);
     }
 
     public void run() {
