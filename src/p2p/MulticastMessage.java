@@ -5,12 +5,13 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class MulticastMessage extends Thread {
     private byte[] message;
     Set<Integer> nodes;
     MessageType messageType;
-
+    boolean hasCompleted;
     //for all the connections
     public MulticastMessage(byte[] message) {
         this.message = message;
@@ -41,6 +42,7 @@ public class MulticastMessage extends Thread {
                     executor.submit(() -> connections.get(peerid).sendInterestedMessage());
                     break;
                 case NOTINTRESTED:
+                    Logging.getLOGGER().log(Level.INFO, "Non interesting " + nodes);
                     executor.submit(() -> connections.get(peerid).sendNotInterestedMessage());
                     break;
                 default:
@@ -57,5 +59,7 @@ public class MulticastMessage extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        hasCompleted = true;
     }
 }
