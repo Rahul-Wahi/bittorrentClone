@@ -1,11 +1,7 @@
 package p2p;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,11 +25,6 @@ public class Piece {
         currentPeer.getBitField().setBit(index);
         currentPeer.removeNeededPiece(index);
 
-        if (currentPeer.getNeededPieces().size() == 0) {
-            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] has downloaded the complete file.");
-            peerProcess.incrementNoOfPeerWithFile();
-            currentPeer.setHasFile(true);
-        }
     }
 
     public static Integer getPieceIndex(byte[] piece) {
