@@ -130,7 +130,20 @@ public class Peer {
         }
     }
 
-    public Integer selectPiece(int remotePeerid) {
+    public void removeRequestedPiece(Integer requestedPieceIndex) {
+        reentrantLock.lock();
+        try {
+            this.requestedPieces.remove(requestedPieceIndex);
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    public Set<Integer> getRequestedPieces() {
+        return this.requestedPieces;
+    }
+
+    synchronized public Integer selectPiece(int remotePeerid) {
         reentrantLock.lock();
         Integer randomIndex = null;
         try {
@@ -138,7 +151,7 @@ public class Peer {
                 return randomIndex;
             }
 
-            randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
+
             BitField remoteBitField = this.getPeerBitField(remotePeerid);
             Set<Integer> remotePeerPieces = new HashSet<>(remoteBitField.getHavePieces());
             remotePeerPieces.removeAll(requestedPieces);
@@ -147,17 +160,23 @@ public class Peer {
                 return randomIndex;
             }
 
+            randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
             while (requestedPieces.contains(neededPieces.get(randomIndex)) ||
                     !remotePeerPieces.contains(neededPieces.get(randomIndex)) ) {
+                logger.log(Level.INFO, "Stuck here needed " + neededPieces);
+                logger.log(Level.INFO, "Stuck here requested " + requestedPieces);
+                logger.log(Level.INFO, "Stuck here index " + randomIndex);
                 randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
             }
 
             requestedPieces.add(neededPieces.get(randomIndex));
+            return neededPieces.get(randomIndex);
+
         } finally {
             reentrantLock.unlock();
         }
 
-        return neededPieces.get(randomIndex);
+
     }
 
     public void addBitField(int peerid, BitField bitField) {
@@ -184,17 +203,46 @@ public class Peer {
         interestedPeers.remove(remotePeerid);
     }
 
-    public Set<Integer> getInterestingPeers() { return interestingPeers; }
+    public Set<Integer> getInterestingPeers() {
+        reentrantLock.lock();
+        try {
+            return interestingPeers;
+        } finally {
+            reentrantLock.unlock();
+        }
+    }
 
     synchronized public void addInterestingPeer(Integer remotePeerid) { this.interestingPeers.add(remotePeerid); }
 
-    synchronized public void removeInterestingPeer(Integer remotePeerid) {
-        this.interestingPeers.remove(remotePeerid);
+    public void removeInterestingPeer(Integer remotePeerid) {
+        reentrantLock.lock();
+        try {
+            this.interestingPeers.remove(remotePeerid);
 
-        if (this.interestingPeers.size() == 0) {
-            this.setHasFile(true);
+            if (this.interestingPeers.size() == 0) {
+                this.setHasFile(true);
+            }
+        } finally {
+            reentrantLock.unlock();
         }
+
     }
+
+    public void removeInterestingPeers(Set<Integer> nonInterestingPeers) {
+        reentrantLock.lock();
+        try {
+            this.interestingPeers.removeAll(nonInterestingPeers);
+
+            if (this.interestingPeers.size() == 0) {
+                this.setHasFile(true);
+            }
+        } finally {
+            reentrantLock.unlock();
+        }
+
+    }
+
+
 
     public int getPeerid() {
         return peerid;
@@ -261,17 +309,22 @@ public class Peer {
             String result = String.join(",", intString);
 
             logger.log(Level.INFO, result);
+
             //unchoke neighbours if not already
             new MulticastMessage(Message.unchokeMessage(), this.neighbours
                     .stream()
                     .filter(peerid -> !(prevNeighbour.contains(peerid)))
                     .collect(Collectors.toSet())).start();
 
+            prevNeighbour.removeAll(this.neighbours);
+            prevNeighbour.remove(this.optimisticNeighbour);
+
             //choke old neighbours if not selected again
-            new MulticastMessage(Message.chokeMessage(), prevNeighbour
-                    .stream()
-                    .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
-                    .collect(Collectors.toSet())).start();
+            //new MulticastMessage(Message.chokeMessage(), prevNeighbour).start();
+//            new MulticastMessage(Message.chokeMessage(), prevNeighbour
+//                    .stream()
+//                    .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
+//                    .collect(Collectors.toSet())).start();
         }, 1, commonConfig.getUnchokingInterval(), TimeUnit.SECONDS);
 
 
@@ -299,12 +352,13 @@ public class Peer {
             new MulticastMessage(Message.unchokeMessage(), optimisticNeighbourSet.stream()
                     .filter(peerid -> !(peerid.equals(prevOptimisticNeighbour)))
                     .collect(Collectors.toSet())).start();
-
+            prevOptimisticNeighbourSet.removeAll(optimisticNeighbourSet);
             //choke old neighbours if not selected again
-            new MulticastMessage(Message.chokeMessage(), prevOptimisticNeighbourSet
-                    .stream()
-                    .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
-                    .collect(Collectors.toSet())).start();
+            //new MulticastMessage(Message.chokeMessage(), prevOptimisticNeighbourSet).start();
+//            new MulticastMessage(Message.chokeMessage(), prevOptimisticNeighbourSet
+//                    .stream()
+//                    .filter(peerid -> !(this.neighbours.contains(peerid)) && !peerid.equals(this.optimisticNeighbour))
+//                    .collect(Collectors.toSet())).start();
         }, 1, commonConfig.getOptimisticUnchokingInterval(), TimeUnit.SECONDS);
     }
 
@@ -316,10 +370,20 @@ public class Peer {
         return fileHandler;
     }
 
-    public void cleanup() throws IOException {
+    public void cleanup() {
         logger.log(Level.INFO, "cleanup");
-        prefferedNeighbourScheduler.shutdownNow();
-        optimisticNeighbourScheduler.shutdownNow();
+        try {
+            prefferedNeighbourScheduler.shutdownNow();
+            optimisticNeighbourScheduler.shutdownNow();
+        } catch (Exception e) {
+
+        }
+
+        logger.log(Level.INFO, "Number of connections :" + connections.size());
+        for (Map.Entry<Integer, PeerHandler> entry : connections.entrySet()) {
+            logger.log(Level.INFO, "Closing " + entry.getKey());
+            entry.getValue().close();
+        }
         //fileHandler.clean();
 
     }
