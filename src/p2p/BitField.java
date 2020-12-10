@@ -97,4 +97,8 @@ public class BitField {
     public int getNumOfSetBit() {
         return numOfSetBit;
     }
+
+    public boolean areAllBitsSet() {
+        return numOfSetBit == bitField.length;
+    }
 }
