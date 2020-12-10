@@ -171,8 +171,7 @@ import java.io.DataInputStream;
     @Override
     public void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
-        logger.log(Level.INFO, "Needed pieces " + currentPeer.getNeededPieces() + " requested " + currentPeer.getRequestedPieces());
-        logger.log(Level.INFO, "next piece index " + nextPieceIndex);
+
         if (nextPieceIndex == null) {
             if (currentPeer.getInterestingPeers().contains(remotePeerid)) {
                 this.sendNotInterestedMessage();
