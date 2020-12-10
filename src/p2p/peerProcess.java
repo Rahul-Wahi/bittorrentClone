@@ -5,7 +5,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,6 +16,7 @@ public class peerProcess {
     private static Peer currentPeer;
     private static Integer noOfPeerWithFile = 0;
     private static Integer totalNumOfPeers = 0;
+    private static Set<Integer> peersWithFile = new HashSet<>();
     static ServerSocket listener;
     public static void setTotalNumOfPeers(Integer totalNumOfPeers) {
         peerProcess.totalNumOfPeers = totalNumOfPeers;
@@ -24,7 +27,7 @@ public class peerProcess {
     }
 
     public static boolean shouldTerminate () throws IOException {
-        boolean result = noOfPeerWithFile == totalNumOfPeers;
+        boolean result = peersWithFile.size() == totalNumOfPeers;
 
         if (result) {
             currentPeer.cleanup();
@@ -33,18 +36,32 @@ public class peerProcess {
         return result;
     }
 
+    synchronized public static void addPeerWithFile(int peerid) {
+        try {
+            peersWithFile.add(peerid);
+            Logging.getLOGGER().log(Level.INFO, "No of peer has file " + peersWithFile.size());
+            if (peersWithFile.size() == totalNumOfPeers) {
+
+                currentPeer.cleanup();
+            }
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
+    }
+
     synchronized public static void incrementNoOfPeerWithFile() {
         noOfPeerWithFile++;
-        if (noOfPeerWithFile == totalNumOfPeers) {
-            try {
-                currentPeer.cleanup();
-            } catch (Exception e) {
+//        //peersWithFile
+//        if (noOfPeerWithFile == totalNumOfPeers) {
+//            try {
+//                currentPeer.cleanup();
+//            } catch (Exception e) {
+//
+//            }
+//
+//        }
 
-            }
-
-        }
-
-        System.out.println("No of peer with file " + noOfPeerWithFile);
+        Logging.getLOGGER().log(Level.INFO, "No of peer with file " + noOfPeerWithFile);
     }
 
     public static Integer getNoOfPeerWithFile() {
@@ -78,6 +95,10 @@ public class peerProcess {
 
         Peer currentPeer = new Peer(currentPeerInfo);
         peerProcess.setCurrentPeer(currentPeer);
+
+        if (currentPeer.hasFile()) {
+            peerProcess.addPeerWithFile(currentPeerId);
+        }
 
         for (PeerInfo peer : peers) {
             if (peer.getPeerid() == currentPeerId) {
