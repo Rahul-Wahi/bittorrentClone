@@ -22,6 +22,7 @@ import java.io.DataInputStream;
     Logger logger = Logging.getLOGGER();
     CommonConfig commonConfig = CommonConfig.getInstance();
     private boolean currentPeerChoked;
+    Integer requestedPieceIndex;
     int totalByteSent;
     int totalByteReceived;
 
@@ -63,14 +64,14 @@ import java.io.DataInputStream;
                 int byteRead = readMessage(messageLengthByte);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
                 byteRead = readMessage(messageType);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
@@ -79,7 +80,7 @@ import java.io.DataInputStream;
                 byteRead = readMessage(messagePayload);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
@@ -153,13 +154,13 @@ import java.io.DataInputStream;
 
     @Override
     public synchronized void setIsCurrentPeerChoked(boolean isCurrentPeerChoked) {
-        this.currentPeerChoked = isCurrentPeerChoked;
+        this.currentPeerChoked = false;
     }
 
     @Override
     public synchronized void sendNotInterestedMessage() {
-        sendMessage(Message.message(MessageType.NOTINTRESTED));
         currentPeer.removeInterestingPeer(remotePeerid);
+        sendMessage(Message.message(MessageType.NOTINTRESTED));
     }
 
     @Override
@@ -170,14 +171,34 @@ import java.io.DataInputStream;
     @Override
     public void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
+        logger.log(Level.INFO, "Needed pieces " + currentPeer.getNeededPieces() + " requested " + currentPeer.getRequestedPieces());
+        logger.log(Level.INFO, "next piece index " + nextPieceIndex);
         if (nextPieceIndex == null) {
-            this.sendNotInterestedMessage();
+            if (currentPeer.getInterestingPeers().contains(remotePeerid)) {
+                this.sendNotInterestedMessage();
+            }
             return;
         }
-
+        requestedPieceIndex = nextPieceIndex;
         if (!this.isCurrentPeerChoked()) {
             this.sendMessage(Message.requestMessage(nextPieceIndex));
         }
+    }
+
+    @Override
+    synchronized public void close() {
+        try{
+            in.close();
+            out.close();
+            connection.close();
+        }
+        catch(IOException ioException) {
+            //ioException.printStackTrace();
+        }
+    }
+
+    public Integer getRequestedPieceIndex() {
+        return requestedPieceIndex;
     }
 }
 

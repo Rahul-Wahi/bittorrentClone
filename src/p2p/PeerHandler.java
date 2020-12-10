@@ -15,4 +15,8 @@ public interface PeerHandler {
     void sendNotInterestedMessage();
 
     void sendRequestMessage();
+
+    Integer getRequestedPieceIndex();
+
+    void close();
 }

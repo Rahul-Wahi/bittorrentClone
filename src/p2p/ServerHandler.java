@@ -22,6 +22,7 @@ import java.util.logging.Logger;
     Peer currentPeer;
     Integer remotePeerid;
     boolean currentPeerChoked;
+    Integer requestedPieceIndex;
     int totalByteSent;
     int totalByteReceived;
     Logger logger = Logging.getLOGGER();
@@ -66,14 +67,14 @@ import java.util.logging.Logger;
                 //logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
                 byteRead = readMessage(messageType);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
@@ -82,7 +83,7 @@ import java.util.logging.Logger;
                 byteRead = readMessage(messagePayload);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
@@ -130,7 +131,7 @@ import java.util.logging.Logger;
         int bytesRead = 0;
         try {
             while (bytesRead != msg.length && bytesRead != -1) {
-                int read = 0;
+                int read;
                 //System.out.print("msg len " + msg.length);
                 read = in.read(msg, bytesRead, msg.length - bytesRead);
                 bytesRead += read;
@@ -172,22 +173,29 @@ import java.util.logging.Logger;
 
     @Override
     public synchronized void sendNotInterestedMessage() {
-        sendMessage(Message.message(MessageType.INTERESTED));
+        logger.log(Level.INFO, "Sending not interested message to " + remotePeerid);
         currentPeer.removeInterestingPeer(remotePeerid);
+        sendMessage(Message.message(MessageType.NOTINTRESTED));
     }
 
     @Override
     public synchronized void setIsCurrentPeerChoked(boolean isCurrentPeerChoked) {
-        this.currentPeerChoked = isCurrentPeerChoked;
+        this.currentPeerChoked = false;
     }
 
     @Override
-    public void sendRequestMessage() {
+    public synchronized void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
+        logger.log(Level.INFO, "Needed pieces " + currentPeer.getNeededPieces() + " requested " + currentPeer.getRequestedPieces());
+        logger.log(Level.INFO, "next piece index " + nextPieceIndex);
+
         if (nextPieceIndex == null) {
-            this.sendNotInterestedMessage();
+            if (currentPeer.getInterestingPeers().contains(remotePeerid)) {
+                this.sendNotInterestedMessage();
+            }
             return;
         }
+        requestedPieceIndex = nextPieceIndex;
 
         if (!this.isCurrentPeerChoked()) {
             this.sendMessage(Message.requestMessage(nextPieceIndex));
@@ -197,5 +205,21 @@ import java.util.logging.Logger;
     @Override
     public boolean isCurrentPeerChoked() {
         return currentPeerChoked;
+    }
+
+    @Override
+    synchronized public void close() {
+        try{
+            in.close();
+            out.close();
+            requestSocket.close();
+        }
+        catch(IOException ioException) {
+            //ioException.printStackTrace();
+        }
+    }
+
+    public Integer getRequestedPieceIndex() {
+        return requestedPieceIndex;
     }
 }
