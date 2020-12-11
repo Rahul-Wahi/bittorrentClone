@@ -48,15 +48,21 @@ import java.io.DataInputStream;
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handhsake message : "
                     + ByteConversionUtil.bytesToString(receivedHandshakeByte));
 
-
-            currentPeer.addConnection(remotePeerid, this);
             //reply with handshake message
             sendMessage(message.handshakeMessage(currentPeer.getPeerid()));
 
             BitField bitField = currentPeer.getBitField();
+            //currentPeer.addConnection(remotePeerid, this);
 
-
+            bitField.lock();
             sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
+            currentPeer.addConnection(remotePeerid, this);
+            bitField.unlock();
+            //read bit field message
+            byte[] bitFieldMessage = new byte[5 + commonConfig.getNumOfPieces()];
+            readMessage(bitFieldMessage);
+
+            handleBitFieldMessage(bitFieldMessage);
 
             while (!peerProcess.shouldTerminate()) {
                 byte[] messageLengthByte = new byte[4];
@@ -102,6 +108,38 @@ import java.io.DataInputStream;
             }
         }
     }
+
+    private void handleBitFieldMessage(byte[] message) {
+        logger.log(Level.INFO, "Received 'Bitfield' Message from [" + remotePeerid + "]");
+        //add received bit field to current peer's remotePeer bitfield map
+        byte[] messageLengthByte = new byte[4];
+        byte[] messageTypeByte = new byte[1];
+
+        System.arraycopy(message, 0, messageLengthByte, 0, messageLengthByte.length);
+        int messageLength = ByteConversionUtil.bytesToInt(messageLengthByte);
+        byte[] messagePayload = new byte[messageLength - messageTypeByte.length];
+        System.arraycopy(message, messageLengthByte.length + messageTypeByte.length, messagePayload, 0, messagePayload.length);
+        BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
+        logger.log(Level.INFO, "No of sit bits in Bitfield " + receivedBitField.getNumOfSetBit());
+        if (receivedBitField.areAllBitsSet()) {
+            peerProcess.addPeerWithFile(remotePeerid);
+        }
+
+        currentPeer.addPeersBitField(remotePeerid, receivedBitField);
+        evaluateRemoteBitField(receivedBitField);
+    }
+
+    private void evaluateRemoteBitField(BitField remoteBitField) {
+        BitField bitField = currentPeer.getBitField();
+
+        //respond interested/not-interested message
+        if (bitField.containsInterestedPieces(remoteBitField.getBitFieldString())) {
+            sendInterestedMessage();
+        } else {
+            sendNotInterestedMessage();
+        }
+    }
+
 
     //send a message to the output stream
     public void sendMessage(String msg) {
@@ -174,7 +212,7 @@ import java.io.DataInputStream;
 
         if (nextPieceIndex == null) {
             if (currentPeer.getInterestingPeers().contains(remotePeerid)) {
-                this.sendNotInterestedMessage();
+                //this.sendNotInterestedMessage();
             }
             return;
         }
