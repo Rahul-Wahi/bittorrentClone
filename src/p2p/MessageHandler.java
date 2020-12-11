@@ -24,17 +24,17 @@ public class MessageHandler extends Thread {
 
     public void run() {
         switch (messageType) {
-            case BITFIELD:
-                logger.log(Level.INFO, "Received 'Bitfield' Message from [" + remotePeerid + "]");
-                //add received bit field to current peer's remotePeer bitfield map
-                BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
-                if (receivedBitField.areAllBitsSet()) {
-                    peerProcess.addPeerWithFile(remotePeerid);
-                }
-
-                currentPeer.addPeersBitField(remotePeerid, receivedBitField);
-                evaluateRemoteBitField(receivedBitField);
-                break;
+//            case BITFIELD:
+//                logger.log(Level.INFO, "Received 'Bitfield' Message from [" + remotePeerid + "]");
+//                //add received bit field to current peer's remotePeer bitfield map
+//                BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
+//                if (receivedBitField.areAllBitsSet()) {
+//                    peerProcess.addPeerWithFile(remotePeerid);
+//                }
+//
+//                currentPeer.addPeersBitField(remotePeerid, receivedBitField);
+//                evaluateRemoteBitField(receivedBitField);
+//                break;
 
             case HAVE: {
                 logger.log(Level.INFO, "Received 'Have' Message from [" + remotePeerid + "]");
@@ -71,6 +71,10 @@ public class MessageHandler extends Thread {
                 // process piece and store
                 int pieceIndex = Piece.getPieceIndex(messagePayload);
                 Piece.store(Piece.getPieceContent(messagePayload), pieceIndex);
+
+                MulticastMessage multicastMessage = new MulticastMessage(Message.haveMessage(pieceIndex));
+                multicastMessage.start();
+
                 logger.log(Level.INFO, " Total Pieces " + currentPeer.getBitField().getNumOfSetBit());
                 //evaluate bit field of interesting neighbours[pending]
                 Set<Integer> interestingPeers = currentPeer.getInterestingPeers();
@@ -90,8 +94,7 @@ public class MessageHandler extends Thread {
 
                 new MulticastMessage(MessageType.NOTINTRESTED, nonInterestingPeers).start();
 
-                MulticastMessage multicastMessage = new MulticastMessage(Message.haveMessage(pieceIndex));
-                multicastMessage.start();
+
                 //send request message for piece if any or not choked (if no piece send not interested) [pending]
                 peerHandler.sendRequestMessage();
 
@@ -132,17 +135,6 @@ public class MessageHandler extends Thread {
             default:
                 logger.log(Level.INFO, "Received 'Unknown' Message from [" + remotePeerid + "]");
                 break;
-        }
-    }
-
-    private void evaluateRemoteBitField(BitField remoteBitField) {
-        BitField bitField = currentPeer.getBitField();
-
-        //respond interested/not-interested message
-        if (bitField.containsInterestedPieces(remoteBitField.getBitFieldString())) {
-            peerHandler.sendInterestedMessage();
-        } else {
-            peerHandler.sendNotInterestedMessage();
         }
     }
 
