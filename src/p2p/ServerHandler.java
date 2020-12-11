@@ -27,10 +27,11 @@ import java.util.logging.Logger;
     int totalByteReceived;
     Logger logger = Logging.getLOGGER();
     CommonConfig commonConfig = CommonConfig.getInstance();
-    public ServerHandler(Peer currentPeer, String hostName, int serverPort) {
+    public ServerHandler(Peer currentPeer, String hostName, int serverPort, int remotePeerid) {
         this.currentPeer = currentPeer;
         this.serverHostname = hostName;
         this.serverPort = serverPort;
+        this.remotePeerid = remotePeerid;
     }
 
     public void run() {
@@ -51,11 +52,15 @@ import java.util.logging.Logger;
 
             //receive handshake message
             readMessage(receivedHandshakeByte);
-            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handshake message : "
-                    + ByteConversionUtil.bytesToString(receivedHandshakeByte));
-            int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
-            this.remotePeerid = remotePeerid;
-            //currentPeer.addConnection(remotePeerid, this);
+
+           if (message.verifyHandshakeMessage(receivedHandshakeByte, this.remotePeerid)) {
+               logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received incorrect handshake message "
+                       + "closing the connection");
+               return;
+           }
+
+            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received 'handshake' message from ["
+                    + this.remotePeerid + "]");
 
             BitField bitField = currentPeer.getBitField();
 
@@ -96,10 +101,7 @@ import java.util.logging.Logger;
                     break;
                 }
 
-                if (totalByteReceived == 10004864) {
-                    System.out.println("here");
-                }
-                //logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
+                logger.log(Level.FINE, " Total Received Byte fo far : " + totalByteReceived);
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
 
@@ -126,7 +128,7 @@ import java.util.logging.Logger;
     }
 
     private void handleBitFieldMessage(byte[] message) {
-        logger.log(Level.INFO, "Received 'Bitfield' Message from [" + remotePeerid + "]");
+        logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received 'Bitfield' Message from [" + remotePeerid + "]");
         //add received bit field to current peer's remotePeer bitfield map
         byte[] messageLengthByte = new byte[4];
         byte[] messageTypeByte = new byte[1];
@@ -136,7 +138,6 @@ import java.util.logging.Logger;
         byte[] messagePayload = new byte[messageLength - messageTypeByte.length];
         System.arraycopy(message, messageLengthByte.length + messageTypeByte.length, messagePayload, 0, messagePayload.length);
         BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
-        logger.log(Level.INFO, "No of sit bits in Bitfield " + receivedBitField.getNumOfSetBit());
         if (receivedBitField.areAllBitsSet()) {
             peerProcess.addPeerWithFile(remotePeerid);
         }
@@ -164,7 +165,7 @@ import java.util.logging.Logger;
             out.flush();
         }
         catch(IOException ioException){
-            ioException.printStackTrace();
+            //ioException.printStackTrace();
         }
     }
 
@@ -227,11 +228,10 @@ import java.util.logging.Logger;
     @Override
     public synchronized void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
-
+        logger.log(Level.FINE, "requested Piece " + currentPeer.getRequestedPieces()
+                + " Needed Pieces " + currentPeer.getNeededPieces());
+        logger.log(Level.FINE, " requested piece " + nextPieceIndex + "remote id " + remotePeerid);
         if (nextPieceIndex == null) {
-            if (currentPeer.getInterestingPeers().contains(remotePeerid)) {
-                //this.sendNotInterestedMessage();
-            }
             return;
         }
         requestedPieceIndex = nextPieceIndex;

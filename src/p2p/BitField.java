@@ -77,10 +77,6 @@ public class BitField {
                 havePieces.add(i);
             }
         }
-
-        if (numOfSetBit == bitFieldString.length()) {
-            peerProcess.incrementNoOfPeerWithFile();
-        }
     }
 
     private void setBitField (Boolean hasFile) {
@@ -88,7 +84,6 @@ public class BitField {
             return;
         }
 
-        peerProcess.incrementNoOfPeerWithFile();
         Arrays.fill(bitField, true);
 
         numOfSetBit = bitField.length;

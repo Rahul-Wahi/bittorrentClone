@@ -26,7 +26,7 @@ public class peerProcess {
         terminate = true;
     }
 
-    public static boolean shouldTerminate () throws IOException {
+    public static boolean shouldTerminate () {
         boolean result = peersWithFile.size() == totalNumOfPeers;
 
         if (result) {
@@ -39,29 +39,14 @@ public class peerProcess {
     synchronized public static void addPeerWithFile(int peerid) {
         try {
             peersWithFile.add(peerid);
-            Logging.getLOGGER().log(Level.INFO, "No of peer has file " + peersWithFile.size());
+            Logging.getLOGGER().log(Level.FINE, "PeersFile " + peersWithFile + "No of peer has file " + peersWithFile.size() +
+                    "Total Number of peers: " + totalNumOfPeers);
             if (peersWithFile.size() == totalNumOfPeers) {
-
+               //cleanup everything when all the peer received file
                 currentPeer.cleanup();
             }
-        } catch (Exception e) {
-            //e.printStackTrace();
+        } catch (Exception ignored) {
         }
-    }
-
-    synchronized public static void incrementNoOfPeerWithFile() {
-        noOfPeerWithFile++;
-//        //peersWithFile
-//        if (noOfPeerWithFile == totalNumOfPeers) {
-//            try {
-//                currentPeer.cleanup();
-//            } catch (Exception e) {
-//
-//            }
-//
-//        }
-
-        Logging.getLOGGER().log(Level.INFO, "No of peer with file " + noOfPeerWithFile);
     }
 
     public static Integer getNoOfPeerWithFile() {
@@ -105,11 +90,10 @@ public class peerProcess {
                 break;
             }
             numOfConnectionToAccept--;
-            new ServerHandler(currentPeer, peer.getHostName(), peer.getPortno()).start();
+            new ServerHandler(currentPeer, peer.getHostName(), peer.getPortno(), peer.getPeerid()).start();
             logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] makes a connection to " +
                     "Peer [" + peer.getPeerid() + "].");
         }
-
 
         currentPeer.selectPreferredNeighbors();
         currentPeer.selectOptimisticUnchokedNeighbor();
@@ -117,10 +101,7 @@ public class peerProcess {
             while (numOfConnectionToAccept-- > 0) {
                 System.out.println(numOfConnectionToAccept);
                 new ClientHandler(listener.accept(), currentPeer).start();
-                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] is connected from");
             }
         }
-
-        System.out.println("jaja");
     }
 }

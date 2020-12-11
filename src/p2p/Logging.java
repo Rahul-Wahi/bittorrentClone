@@ -19,7 +19,7 @@ public class Logging {
 
 
     public static void setup (int peerid) throws IOException {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.INFO);
         LOGGER.setUseParentHandlers(false);
         ConsoleHandler consoleHandler = new ConsoleHandler();
         consoleHandler.setFormatter(new P2PFormatter());
