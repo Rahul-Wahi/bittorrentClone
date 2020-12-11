@@ -2,6 +2,7 @@ package p2p;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -155,23 +156,32 @@ public class Peer {
             BitField remoteBitField = this.getPeerBitField(remotePeerid);
             Set<Integer> remotePeerPieces = new HashSet<>(remoteBitField.getHavePieces());
             remotePeerPieces.removeAll(requestedPieces);
+            remotePeerPieces.retainAll(neededPieces);
 
             if (remotePeerPieces.size() == 0) {
                 return randomIndex;
             }
 
-            randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
-            while (requestedPieces.contains(neededPieces.get(randomIndex)) ||
-                    !remotePeerPieces.contains(neededPieces.get(randomIndex)) ) {
-                logger.log(Level.INFO, "Stuck here needed " + neededPieces);
-                logger.log(Level.INFO, "Stuck here requested " + requestedPieces);
-                logger.log(Level.INFO, "Stuck here index " + randomIndex);
-                randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
+            randomIndex = ThreadLocalRandom.current().nextInt(remotePeerPieces.size());
+            int i = 0;
+            for(Integer pieceIndex : remotePeerPieces)
+            {
+                if (i == randomIndex) {
+                    requestedPieces.add(pieceIndex);
+                    return pieceIndex;
+                }
+
+                i++;
             }
-
-            requestedPieces.add(neededPieces.get(randomIndex));
-            return neededPieces.get(randomIndex);
-
+//            while (requestedPieces.contains(neededPieces.get(randomIndex)) ||
+//                    !remotePeerPieces.contains(neededPieces.get(randomIndex)) ) {
+//                logger.log(Level.INFO, "Stuck here needed " + neededPieces);
+//                logger.log(Level.INFO, "Stuck here requested " + requestedPieces);
+//                logger.log(Level.INFO, "Stuck here index " + randomIndex);
+//                randomIndex = ThreadLocalRandom.current().nextInt(this.neededPieces.size());
+//            }
+//
+            return null;
         } finally {
             reentrantLock.unlock();
         }
@@ -319,6 +329,8 @@ public class Peer {
             prevNeighbour.removeAll(this.neighbours);
             prevNeighbour.remove(this.optimisticNeighbour);
 
+            logger.log(Level.INFO, "Preferred Neighbour " + this.neighbours);
+
             //choke old neighbours if not selected again
             //new MulticastMessage(Message.chokeMessage(), prevNeighbour).start();
 //            new MulticastMessage(Message.chokeMessage(), prevNeighbour
@@ -345,6 +357,7 @@ public class Peer {
             }
             Integer prevOptimisticNeighbour = this.optimisticNeighbour;
             this.optimisticNeighbour = neighboursList.get(index);
+            logger.log(Level.INFO, "Optimistic Neighbours " + this.optimisticNeighbour);
             Set<Integer> optimisticNeighbourSet = new HashSet<>();
             optimisticNeighbourSet.add(optimisticNeighbour);
             Set<Integer> prevOptimisticNeighbourSet = new HashSet<>();
