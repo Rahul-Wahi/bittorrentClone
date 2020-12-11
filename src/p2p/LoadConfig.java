@@ -30,7 +30,7 @@ public class LoadConfig {
             if (info.equals("")) {
                 continue;
             }
-
+            info = info.trim();
             splitInfo = info.split(" ", 2);
             commonInfo.put(splitInfo[0], splitInfo[1]);
         }
@@ -86,7 +86,7 @@ public class LoadConfig {
             if (info.equals("")) {
                 continue;
             }
-
+            info = info.trim();
             peerInfoArray = info.split(" ", 4);
             int peerId = Integer.parseInt(peerInfoArray[0]);
             String host = peerInfoArray[1];
