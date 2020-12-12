@@ -14,6 +14,14 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.Iterator;
+
+import java.util.*;
+import java.lang.*;
+import java.io.*;
 
 public class Peer {
     private int peerid;
@@ -33,6 +41,8 @@ public class Peer {
     private final ScheduledThreadPoolExecutor prefferedNeighbourScheduler;
     private final ScheduledThreadPoolExecutor optimisticNeighbourScheduler;
     private final ReentrantLock reentrantLock;
+    public  Map<Integer, Float> downloadSpeed;
+
     CommonConfig commonConfig = CommonConfig.getInstance();
     Logger logger = Logging.getLOGGER();
 
@@ -49,6 +59,8 @@ public class Peer {
         this.interestingPeers = new HashSet<>();
         this.requestedPieces = new HashSet<>();
         this.neededPieces = new ArrayList<>();
+        this.downloadSpeed = new HashMap<>();
+
         bitField = new BitField(hasFile);
         peersBitField = new HashMap<>();
         fileHandler = new FileHandler(this);
@@ -135,6 +147,14 @@ public class Peer {
 
     }
 
+    public float getDownloadSpeed(int remotePeerid) {
+        return downloadSpeed.get(remotePeerid);
+    }
+
+        public void setDownloadSpeed(Map<Integer, Float> downloadSpeed) {
+        this.downloadSpeed = downloadSpeed;
+    }
+
     public void removeNeededPiece(Integer pieceIndex) {
         reentrantLock.lock();
         try {
@@ -144,6 +164,26 @@ public class Peer {
             reentrantLock.unlock();
         }
     }
+
+    synchronized public Map<Integer, Float> addDownloadSpeed(int remotePeerid, float startTime, float stopTime, int piecelength) {
+        float diff = stopTime - startTime;
+        Float elapsed = TimeUnit.MILLISECONDS.convert((long)diff,TimeUnit.NANOSECONDS) / 1000.0f;
+        
+        Float downloadRate = 0.0f;
+        if(elapsed != 0)
+        {
+            downloadRate = piecelength / elapsed;
+        }
+        downloadSpeed.put(remotePeerid, downloadRate);
+        logger.log(Level.INFO, "downloadRate: "+ downloadRate +"time elapsed "+ elapsed );
+        logger.log(Level.INFO, "print download map---------------------------------" );
+
+        downloadSpeed.forEach((key, value) -> System.out.println(key + ":" + value));
+        
+        return downloadSpeed;
+
+    }
+
 
     public Integer getNeededPiece(int index) {
         return this.neededPieces.get(index);
@@ -337,6 +377,8 @@ public class Peer {
 
         optimisticNeighbourScheduler.scheduleAtFixedRate(() -> {
             logger.log(Level.FINE, "selectOptimisticUnchokedNeighbor");
+            logger.log(Level.INFO, "print download map inside selected optimistic neighbour function---------------------------------" );
+            downloadSpeed.forEach((key, value) -> System.out.println(key + ":" + value));
 
             Integer prevOptimisticNeighbour = this.optimisticNeighbour;
             Set<Integer> potentialNeighbours = new HashSet<>(interestedPeers);

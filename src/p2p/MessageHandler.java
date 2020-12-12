@@ -4,6 +4,9 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MessageHandler extends Thread {
     private MessageType messageType;
@@ -11,6 +14,8 @@ public class MessageHandler extends Thread {
     private PeerHandler peerHandler;
     private Peer currentPeer;
     private int remotePeerid;
+    private float startTime;
+    private float stopTime;
     Logger logger = Logging.getLOGGER();
     CommonConfig commonConfig = CommonConfig.getInstance();
 
@@ -20,6 +25,8 @@ public class MessageHandler extends Thread {
         this.messageType = MessageType.values()[Integer.parseInt(messageType)];
         this.messagePayload = messagePayload;
         this.remotePeerid = remotePeerid;
+        this.startTime= 0.0f;
+        this.stopTime= 0.0f;
     }
 
     public void run() {
@@ -103,6 +110,14 @@ public class MessageHandler extends Thread {
 
                 //send piece
                 byte[] piece = Message.pieceMessage(requestedPieceIndex);
+                if (startTime != System.nanoTime()){
+                    stopTime= System.nanoTime();
+                
+                    Map<Integer, Float> downloadSpeed = currentPeer.addDownloadSpeed(remotePeerid, startTime, stopTime, piece.length);
+                    currentPeer.setDownloadSpeed(downloadSpeed);
+
+                    startTime= stopTime;
+                }
                 peerHandler.sendMessage(piece);
                 break;
 
