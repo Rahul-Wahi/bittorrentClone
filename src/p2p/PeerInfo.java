@@ -8,7 +8,6 @@ public class PeerInfo {
     private int portno;
     private boolean hasFile;
 
-
     public PeerInfo(int peerid, String hostName, int portno, boolean hasFile) {
         this.peerid = peerid;
         this.hostName = hostName;
@@ -48,5 +47,4 @@ public class PeerInfo {
     public void setHasFile(boolean hasFile) {
         this.hasFile = hasFile;
     }
-    
 }

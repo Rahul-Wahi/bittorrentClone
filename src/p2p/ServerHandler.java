@@ -22,13 +22,16 @@ import java.util.logging.Logger;
     Peer currentPeer;
     Integer remotePeerid;
     boolean currentPeerChoked;
+    Integer requestedPieceIndex;
     int totalByteSent;
     int totalByteReceived;
     Logger logger = Logging.getLOGGER();
-    public ServerHandler(Peer currentPeer, String hostName, int serverPort) {
+    CommonConfig commonConfig = CommonConfig.getInstance();
+    public ServerHandler(Peer currentPeer, String hostName, int serverPort, int remotePeerid) {
         this.currentPeer = currentPeer;
         this.serverHostname = hostName;
         this.serverPort = serverPort;
+        this.remotePeerid = remotePeerid;
     }
 
     public void run() {
@@ -49,31 +52,43 @@ import java.util.logging.Logger;
 
             //receive handshake message
             readMessage(receivedHandshakeByte);
-            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received handshake message : "
-                    + ByteConversionUtil.bytesToString(receivedHandshakeByte));
-            int remotePeerid = message.verifyHandshakeMessage(receivedHandshakeByte);
-            this.remotePeerid = remotePeerid;
-            currentPeer.addConnection(remotePeerid, this);
+
+           if (!message.verifyHandshakeMessage(receivedHandshakeByte, this.remotePeerid)) {
+               logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received incorrect handshake message "
+                       + "closing the connection");
+               return;
+           }
+
+            logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received 'handshake' message from ["
+                    + this.remotePeerid + "]");
 
             BitField bitField = currentPeer.getBitField();
 
+            bitField.lock();
             sendMessage(Message.message(MessageType.BITFIELD, bitField.getBitFieldString()));
+            currentPeer.addConnection(remotePeerid, this);
+            bitField.unlock();
+            //read bit field message
+            byte[] bitFieldMessage = new byte[5 + commonConfig.getNumOfPieces()];
+            readMessage(bitFieldMessage);
+
+            handleBitFieldMessage(bitFieldMessage);
 
             while (!peerProcess.shouldTerminate()) {
                 byte[] messageLengthByte = new byte[4];
                 byte[] messageType = new byte[1];
                 int byteRead = readMessage(messageLengthByte);
-                logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
+                //logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
                 byteRead = readMessage(messageType);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
@@ -82,14 +97,11 @@ import java.util.logging.Logger;
                 byteRead = readMessage(messagePayload);
 
                 if (byteRead == -1) {
-                    currentPeer.cleanup();
+                    //currentPeer.cleanup();
                     break;
                 }
 
-                if (totalByteReceived == 10004864) {
-                    System.out.println("here");
-                }
-                logger.log(Level.INFO, " Total Received Byte fo far : " + totalByteReceived);
+                logger.log(Level.FINE, " Total Received Byte fo far : " + totalByteReceived);
                 new MessageHandler(this, currentPeer, remotePeerid, ByteConversionUtil.bytesToString(messageType), messagePayload).start();
             }
 
@@ -115,6 +127,37 @@ import java.util.logging.Logger;
         }
     }
 
+    private void handleBitFieldMessage(byte[] message) {
+        logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received 'Bitfield' Message from [" + remotePeerid + "]");
+        //add received bit field to current peer's remotePeer bitfield map
+        byte[] messageLengthByte = new byte[4];
+        byte[] messageTypeByte = new byte[1];
+
+        System.arraycopy(message, 0, messageLengthByte, 0, messageLengthByte.length);
+        int messageLength = ByteConversionUtil.bytesToInt(messageLengthByte);
+        byte[] messagePayload = new byte[messageLength - messageTypeByte.length];
+        System.arraycopy(message, messageLengthByte.length + messageTypeByte.length, messagePayload, 0, messagePayload.length);
+        BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
+        if (receivedBitField.areAllBitsSet()) {
+            peerProcess.addPeerWithFile(remotePeerid);
+        }
+
+        currentPeer.addPeersBitField(remotePeerid, receivedBitField);
+        evaluateRemoteBitField(receivedBitField);
+    }
+
+
+    private void evaluateRemoteBitField(BitField remoteBitField) {
+        BitField bitField = currentPeer.getBitField();
+
+        //respond interested/not-interested message
+        if (bitField.containsInterestedPieces(remoteBitField.getBitFieldString())) {
+            sendInterestedMessage();
+        } else {
+            sendNotInterestedMessage();
+        }
+    }
+
     void sendMessage(String msg) {
         try{
             //stream write the message
@@ -122,7 +165,7 @@ import java.util.logging.Logger;
             out.flush();
         }
         catch(IOException ioException){
-            ioException.printStackTrace();
+            //ioException.printStackTrace();
         }
     }
 
@@ -130,7 +173,7 @@ import java.util.logging.Logger;
         int bytesRead = 0;
         try {
             while (bytesRead != msg.length && bytesRead != -1) {
-                int read = 0;
+                int read;
                 //System.out.print("msg len " + msg.length);
                 read = in.read(msg, bytesRead, msg.length - bytesRead);
                 bytesRead += read;
@@ -154,7 +197,7 @@ import java.util.logging.Logger;
     public synchronized void sendMessage(byte[] msg) {
         try{
             totalByteSent += msg.length;
-            logger.log(Level.FINE, "send msg " + msg.length + " Total Bytes Sent so far" + totalByteSent);
+            //logger.log(Level.FINE, "send msg " + msg.length + " Total Bytes Sent so far" + totalByteSent);
             //stream write the message
             out.write(msg);
             out.flush();
@@ -172,8 +215,9 @@ import java.util.logging.Logger;
 
     @Override
     public synchronized void sendNotInterestedMessage() {
-        sendMessage(Message.message(MessageType.INTERESTED));
+        logger.log(Level.INFO, "Sending not interested message to " + remotePeerid);
         currentPeer.removeInterestingPeer(remotePeerid);
+        sendMessage(Message.message(MessageType.NOTINTRESTED));
     }
 
     @Override
@@ -182,12 +226,15 @@ import java.util.logging.Logger;
     }
 
     @Override
-    public void sendRequestMessage() {
+    public synchronized void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
+        logger.log(Level.FINE, "requested Piece " + currentPeer.getRequestedPieces()
+                + " Needed Pieces " + currentPeer.getNeededPieces());
+        logger.log(Level.FINE, " requested piece " + nextPieceIndex + "remote id " + remotePeerid);
         if (nextPieceIndex == null) {
-            this.sendNotInterestedMessage();
             return;
         }
+        requestedPieceIndex = nextPieceIndex;
 
         if (!this.isCurrentPeerChoked()) {
             this.sendMessage(Message.requestMessage(nextPieceIndex));
@@ -197,5 +244,21 @@ import java.util.logging.Logger;
     @Override
     public boolean isCurrentPeerChoked() {
         return currentPeerChoked;
+    }
+
+    @Override
+    synchronized public void close() {
+        try{
+            in.close();
+            out.close();
+            requestSocket.close();
+        }
+        catch(IOException ioException) {
+            //ioException.printStackTrace();
+        }
+    }
+
+    public Integer getRequestedPieceIndex() {
+        return requestedPieceIndex;
     }
 }

@@ -1,6 +1,5 @@
 package p2p;
 
-import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,73 +31,85 @@ public class MessageHandler extends Thread {
 
     public void run() {
         switch (messageType) {
-            case BITFIELD:
-                logger.log(Level.INFO, "Received 'Bitfield' Message from [" + remotePeerid + "]");
-                //add received bit field to current peer's remotePeer bitfield map
-                BitField receivedBitField = new BitField(ByteConversionUtil.bytesToString(messagePayload));
-                currentPeer.addPeersBitField(remotePeerid, receivedBitField);
-                evaluateRemoteBitField(receivedBitField);
-                break;
-
             case HAVE: {
-                logger.log(Level.INFO, "Received 'Have' Message from [" + remotePeerid + "]");
-                //update remote peer bitfield
                 int pieceIndex = ByteConversionUtil.bytesToInt(messagePayload);
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received the 'have' Message from " +
+                        "[" + remotePeerid + "] for the piece [" + pieceIndex + "]");
+
+                //update remote peer bitfield
                 BitField remoteBitField = currentPeer.getPeerBitField(remotePeerid);
                 remoteBitField.setBit(pieceIndex);
-
+                logger.log(Level.FINE, "No of piece with peer [" +  remotePeerid + "] = "
+                        + remoteBitField.getNumOfSetBit());
                 if (remoteBitField.getNumOfSetBit() == commonConfig.getNumOfPieces()) {
-                    peerProcess.incrementNoOfPeerWithFile();
+                    peerProcess.addPeerWithFile(remotePeerid);
                 }
                 //evaluateRemoteBitField(remoteBitField);//change and check just one bit
-                evaluateRemoteBitField(remoteBitField);
+                evaluateRemoteBitField(pieceIndex);
                 break;
             }
 
             case CHOKE:
-                logger.log(Level.INFO, "Received 'Choke' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] is choked by [" + remotePeerid + "]");
                 peerHandler.setIsCurrentPeerChoked(true);
-                currentPeer.clearRequestedPieces();
+                currentPeer.removeRequestedPiece(peerHandler.getRequestedPieceIndex());
                 break;
 
             case UNCHOKE:
-                logger.log(Level.INFO, "Received 'Unchoke' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] is unchoked by [" + remotePeerid + "]");
                 peerHandler.setIsCurrentPeerChoked(false);
                 //send request message for piece if any else send not interested
                 peerHandler.sendRequestMessage();
+                logger.log(Level.FINE, "Unchoke request piece remote peerid " + remotePeerid);
                 break;
 
             case PIECE: {
-                logger.log(Level.INFO, "Received 'Piece' Message from [" + remotePeerid + "]");
-                logger.log(Level.FINE, "Piece " + messagePayload.length);
-
                 // process piece and store
                 int pieceIndex = Piece.getPieceIndex(messagePayload);
                 Piece.store(Piece.getPieceContent(messagePayload), pieceIndex);
 
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid()
+                        + "] has downloaded the piece [" + pieceIndex + "] from [" + remotePeerid + "]");
+
+                MulticastMessage multicastHaveMessage = new MulticastMessage(Message.haveMessage(pieceIndex));
+                multicastHaveMessage.start();
+
                 //evaluate bit field of interesting neighbours[pending]
                 Set<Integer> interestingPeers = currentPeer.getInterestingPeers();
-                new MulticastMessage(MessageType.NOTINTRESTED, interestingPeers.stream()
+
+                Set<Integer> nonInterestingPeers = interestingPeers.stream()
                         .filter(peerid -> !currentPeer.getBitField().containsInterestedPieces
                                 (currentPeer.getPeerBitField(peerid).getBitFieldString()))
-                        .collect(Collectors.toSet())).start();
+                        .collect(Collectors.toSet());
 
-                new MulticastMessage(Message.haveMessage(pieceIndex)).run();
+                currentPeer.removeInterestingPeers(nonInterestingPeers);
+
+                new MulticastMessage(MessageType.NOTINTRESTED, nonInterestingPeers).start();
+
+
                 //send request message for piece if any or not choked (if no piece send not interested) [pending]
                 peerHandler.sendRequestMessage();
-                //finishTime = System.nanoTime();
-                //calculateDownloadSpeed(int remotePeerid)
+
+                if (currentPeer.getNeededPieces().size() == 0) {
+                    logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] has downloaded the complete file.");
+
+                    while (!multicastHaveMessage.hasCompleted) {
+                        //wait until all the have messages are sent
+                    }
+
+                    peerProcess.addPeerWithFile(currentPeer.getPeerid());
+                    currentPeer.setHasFile(true);
+                }
                 break;
             }
 
             case REQUEST:
-                logger.log(Level.INFO, "Received 'Request' Message from [" + remotePeerid + "]");
-                //send piece
                 int requestedPieceIndex = ByteConversionUtil.bytesToInt(messagePayload);
-                byte[] piece = Message.pieceMessage(requestedPieceIndex);
-                logger.log(Level.INFO, "Request: index: " + requestedPieceIndex + " pieceLen " + piece.length);
-                logger.log(Level.INFO, "Current time:------------------: "+ System.nanoTime());
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] received 'request' message from ["
+                        + remotePeerid + "] for the piece [" + requestedPieceIndex + "]");
 
+                //send piece
+                byte[] piece = Message.pieceMessage(requestedPieceIndex);
                 if (startTime != System.nanoTime()){
                     stopTime= System.nanoTime();
                 
@@ -111,38 +122,29 @@ public class MessageHandler extends Thread {
                 break;
 
             case INTERESTED:
-                logger.log(Level.INFO, "Received Interested Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid()
+                        + "] received the 'interested' message from [" + remotePeerid + "]");
                 currentPeer.addInterestedPeers(remotePeerid);
                 break;
 
             case NOTINTRESTED:
-                logger.log(Level.INFO, "Received Not Interested Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid()
+                        + "] received the 'not interested' message from [" + remotePeerid + "]");
                 currentPeer.removeInterestedPeers(remotePeerid);
                 break;
 
             default:
-                logger.log(Level.INFO, "Received 'Unknown' Message from [" + remotePeerid + "]");
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid()
+                        + "]received 'unknown' Message from [" + remotePeerid + "]");
                 break;
-        }
-    }
-
- private void evaluateRemoteBitField(BitField remoteBitField) {
-        BitField bitField = currentPeer.getBitField();
-
-        //respond interested/not-interested message
-        if (bitField.containsInterestedPieces(remoteBitField.getBitFieldString())) {
-            peerHandler.sendInterestedMessage();
-        } else {
-            peerHandler.sendNotInterestedMessage();
         }
     }
 
     private void evaluateRemoteBitField(int bitIndex) {
         BitField bitField = currentPeer.getBitField();
         //respond interested/not-interested message
-        if (bitField.getBitFieldString().charAt(bitIndex) == '0' && currentPeer.getInterestingPeers().contains(remotePeerid)) {
+        if (bitField.getBitFieldString().charAt(bitIndex) == '0' && !currentPeer.getInterestingPeers().contains(remotePeerid)) {
             peerHandler.sendInterestedMessage();
         }
     }
 }
-   

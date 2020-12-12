@@ -34,8 +34,6 @@ public class Message {
         String header = ByteConversionUtil.bytesToString(headerByte);
         if (!header.equals(HEADER)) {
             logger.log(Level.INFO, "Received wrong header message from peer id: [" + peerid + "]");
-
-            //should exit here add condition -jayetri
         }
         return peerid;
     }
@@ -97,11 +95,11 @@ public class Message {
         return createMessage(messageLengthBytes, messageTypeByte, payload);
     }
 
-    private static byte[] createMessage(byte[] firstPart, byte[] middlePart, byte[] lastPart) {
-        byte[] messageBytes = new byte[firstPart.length + middlePart.length + lastPart.length];
-        System.arraycopy(firstPart, 0, messageBytes, 0, firstPart.length);
-        System.arraycopy(middlePart, 0, messageBytes, firstPart.length, middlePart.length);
-        System.arraycopy(lastPart, 0, messageBytes, firstPart.length + middlePart.length, lastPart.length);
+    private static byte[] createMessage(byte[] fistPart, byte[] middlePart, byte[] lastPart) {
+        byte[] messageBytes = new byte[fistPart.length + middlePart.length + lastPart.length];
+        System.arraycopy(fistPart, 0, messageBytes, 0, fistPart.length);
+        System.arraycopy(middlePart, 0, messageBytes, fistPart.length, middlePart.length);
+        System.arraycopy(lastPart, 0, messageBytes, fistPart.length + middlePart.length, lastPart.length);
         return messageBytes;
     }
 }

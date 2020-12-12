@@ -30,9 +30,9 @@ public class LoadConfig {
             if (info.equals("")) {
                 continue;
             }
-
-            splitInfo = info.split(" ", 2);
-            commonInfo.put(splitInfo[0], splitInfo[1]);
+            info= info.trim();
+            splitInfo = info.split("\\s+", 2);
+            commonInfo.put(splitInfo[0].trim(), splitInfo[1].trim());
         }
 
         if (commonInfo.containsKey(NUMBER_OF_PREFERRED_NEIGHBORS)) {
@@ -87,11 +87,12 @@ public class LoadConfig {
                 continue;
             }
 
-            peerInfoArray = info.split(" ", 4);
-            int peerId = Integer.parseInt(peerInfoArray[0]);
-            String host = peerInfoArray[1];
-            int portNo = Integer.parseInt(peerInfoArray[2]);
-            boolean hasFile = Integer.parseInt(peerInfoArray[3]) == 1;
+            info= info.trim();
+            peerInfoArray = info.split("\\s+", 4);
+            int peerId = Integer.parseInt(peerInfoArray[0].trim());
+            String host = peerInfoArray[1].trim();
+            int portNo = Integer.parseInt(peerInfoArray[2].trim());
+            boolean hasFile = Integer.parseInt(peerInfoArray[3].trim()) == 1;
             PeerInfo peerInfo = new PeerInfo(peerId, host, portNo, hasFile);
             peersList.add(peerInfo);
         }

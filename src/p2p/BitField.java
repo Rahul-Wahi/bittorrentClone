@@ -6,23 +6,30 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class BitField {
     private Set<Integer> havePieces;
     private final boolean[] bitField;
     private int numOfSetBit;
     Peer currentPeer;
+    ReentrantLock reentrantLock;
     private static final CommonConfig commonConfig = CommonConfig.getInstance();
 
     public BitField (String bitFieldString) {
+        reentrantLock = new ReentrantLock();
         bitField = new boolean[commonConfig.getNumOfPieces()];
         havePieces = new HashSet<>();
         setBitField(bitFieldString);
+
     }
 
-    public BitField (boolean hasFile) throws IOException {
+    public BitField (boolean hasFile) {
+        reentrantLock = new ReentrantLock();
         bitField = new boolean[commonConfig.getNumOfPieces()];
+        havePieces = new HashSet<>();
         setBitField(hasFile);
+
     }
 
     public Set<Integer> getHavePieces() {
@@ -30,19 +37,32 @@ public class BitField {
     }
 
     public boolean containsInterestedPieces (String receivedBitFieldString) {
-        for (int i = 0; i < bitField.length; i++) {
-            if (!bitField[i] && receivedBitFieldString.charAt(i) == '1') {
-                return true;
+        reentrantLock.lock();
+        try {
+            for (int i = 0; i < bitField.length; i++) {
+                if (!bitField[i] && receivedBitFieldString.charAt(i) == '1') {
+                    return true;
+                }
             }
+            return false;
+        } finally {
+            reentrantLock.unlock();
         }
-        return false;
+
     }
 
-    synchronized public void setBit (int pieceIndex) {
-        if (!bitField[pieceIndex]) {
-            numOfSetBit++;
-            bitField[pieceIndex] = true;
+    public void setBit (int pieceIndex) {
+        reentrantLock.lock();
+        try {
+            if (!bitField[pieceIndex]) {
+                numOfSetBit++;
+                bitField[pieceIndex] = true;
+                havePieces.add(pieceIndex);
+            }
+        } finally {
+            reentrantLock.unlock();
         }
+
     }
 
     public boolean completed () {
@@ -57,24 +77,24 @@ public class BitField {
                 havePieces.add(i);
             }
         }
-
-        if (numOfSetBit == bitFieldString.length()) {
-            peerProcess.incrementNoOfPeerWithFile();
-        }
     }
 
-    private void setBitField (Boolean hasFile) throws IOException {
+    private void setBitField (Boolean hasFile) {
         if (!hasFile) {
             return;
         }
 
-        peerProcess.incrementNoOfPeerWithFile();
         Arrays.fill(bitField, true);
 
         numOfSetBit = bitField.length;
+
+        for (int i = 0; i < bitField.length; i++) {
+            havePieces.add(i);
+        }
     }
 
     public String getBitFieldString () {
+
         StringBuilder bitFieldString = new StringBuilder();
 
         for (boolean bit : bitField) {
@@ -90,5 +110,17 @@ public class BitField {
 
     public int getNumOfSetBit() {
         return numOfSetBit;
+    }
+
+    public boolean areAllBitsSet() {
+        return numOfSetBit == bitField.length;
+    }
+
+    public void lock() {
+        reentrantLock.lock();
+    }
+
+    public void unlock() {
+        reentrantLock.unlock();
     }
 }
