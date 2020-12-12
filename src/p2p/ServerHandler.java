@@ -53,7 +53,7 @@ import java.util.logging.Logger;
             //receive handshake message
             readMessage(receivedHandshakeByte);
 
-           if (message.verifyHandshakeMessage(receivedHandshakeByte, this.remotePeerid)) {
+           if (!message.verifyHandshakeMessage(receivedHandshakeByte, this.remotePeerid)) {
                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received incorrect handshake message "
                        + "closing the connection");
                return;
