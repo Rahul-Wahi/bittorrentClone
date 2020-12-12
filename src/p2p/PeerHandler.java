@@ -4,6 +4,10 @@ import java.io.IOException;
 
 public interface PeerHandler {
 
+    float getPieceRequestStartTime();
+
+    void setPieceRequestStartTime(float startTime);
+
     void sendMessage(byte[] msg);
 
     void setIsCurrentPeerChoked (boolean isCurrentPeerChoked);

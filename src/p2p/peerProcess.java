@@ -39,8 +39,8 @@ public class peerProcess {
     synchronized public static void addPeerWithFile(int peerid) {
         try {
             peersWithFile.add(peerid);
-            Logging.getLOGGER().log(Level.FINE, "PeersFile " + peersWithFile + "No of peer has file " + peersWithFile.size() +
-                    "Total Number of peers: " + totalNumOfPeers);
+            Logging.getLOGGER().log(Level.INFO, "Peers With File " + peersWithFile + " No of peer that has file "
+                    + peersWithFile.size() + " Total Number of peers: " + totalNumOfPeers);
             if (peersWithFile.size() == totalNumOfPeers) {
                //cleanup everything when all the peer received file
                 currentPeer.cleanup();
@@ -99,7 +99,6 @@ public class peerProcess {
         currentPeer.selectOptimisticUnchokedNeighbor();
         try (ServerSocket listener = new ServerSocket(currentPeer.getPortno())) {
             while (numOfConnectionToAccept-- > 0) {
-                System.out.println(numOfConnectionToAccept);
                 new ClientHandler(listener.accept(), currentPeer).start();
             }
         }

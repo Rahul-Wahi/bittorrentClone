@@ -1,11 +1,9 @@
 package p2p;
 
-import java.awt.*;
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,6 +23,7 @@ import java.util.logging.Logger;
     Integer requestedPieceIndex;
     int totalByteSent;
     int totalByteReceived;
+    private float pieceRequestStartTime;
     Logger logger = Logging.getLOGGER();
     CommonConfig commonConfig = CommonConfig.getInstance();
     public ServerHandler(Peer currentPeer, String hostName, int serverPort, int remotePeerid) {
@@ -32,6 +31,7 @@ import java.util.logging.Logger;
         this.serverHostname = hostName;
         this.serverPort = serverPort;
         this.remotePeerid = remotePeerid;
+        this.pieceRequestStartTime = 0.0f;
     }
 
     public void run() {
@@ -125,6 +125,14 @@ import java.util.logging.Logger;
                 //ioException.printStackTrace();
             }
         }
+    }
+
+    synchronized public float getPieceRequestStartTime() {
+        return pieceRequestStartTime;
+    }
+
+    synchronized public void setPieceRequestStartTime(float startTime) {
+        this.pieceRequestStartTime = startTime;
     }
 
     private void handleBitFieldMessage(byte[] message) {
@@ -228,8 +236,6 @@ import java.util.logging.Logger;
     @Override
     public synchronized void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
-        logger.log(Level.FINE, "requested Piece " + currentPeer.getRequestedPieces()
-                + " Needed Pieces " + currentPeer.getNeededPieces());
         logger.log(Level.FINE, " requested piece " + nextPieceIndex + "remote id " + remotePeerid);
         if (nextPieceIndex == null) {
             return;

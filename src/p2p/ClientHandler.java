@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import java.io.DataInputStream;
 
 /**
  * A handler thread class.  Handlers are spawned from the listening
@@ -25,10 +23,12 @@ import java.io.DataInputStream;
     Integer requestedPieceIndex;
     int totalByteSent;
     int totalByteReceived;
+    private float pieceRequestStartTime;
 
     public ClientHandler(Socket connection, Peer currentPeer) {
         this.connection = connection;
         this.currentPeer = currentPeer;
+        this.pieceRequestStartTime = 0.0f;
     }
 
     public void run() {
@@ -91,18 +91,24 @@ import java.io.DataInputStream;
             }
 
 
-        } catch (IOException ioException) {
-            System.out.println("Disconnect with Client ");
+        } catch (IOException ignored) {
         } finally {
             //Close connections
             try {
                 in.close();
                 out.close();
                 connection.close();
-            } catch (IOException ioException) {
-                System.out.println("Disconnect with Client ");
+            } catch (IOException ignored) {
             }
         }
+    }
+
+    synchronized public float getPieceRequestStartTime() {
+        return pieceRequestStartTime;
+    }
+
+    synchronized public void setPieceRequestStartTime(float startTime) {
+        this.pieceRequestStartTime = startTime;
     }
 
     private void handleBitFieldMessage(byte[] message) {
@@ -199,8 +205,6 @@ import java.io.DataInputStream;
     @Override
     public void sendRequestMessage() {
         Integer nextPieceIndex = currentPeer.selectPiece(this.remotePeerid);
-        logger.log(Level.FINE, "requested Piece " + currentPeer.getRequestedPieces()
-                + " Needed Pieces " + currentPeer.getNeededPieces());
         logger.log(Level.FINE, " requested piece " + nextPieceIndex + "remote id " + remotePeerid);
         if (nextPieceIndex == null) {
             return;

@@ -5,17 +5,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
-import java.util.HashMap;
-import java.util.Map;
 
 public class MessageHandler extends Thread {
-    private MessageType messageType;
-    private byte[] messagePayload;
-    private PeerHandler peerHandler;
-    private Peer currentPeer;
-    private int remotePeerid;
-    private float startTime;
-    private float stopTime;
+    private final MessageType messageType;
+    private final byte[] messagePayload;
+    private final PeerHandler peerHandler;
+    private final Peer currentPeer;
+    private final int remotePeerid;
     Logger logger = Logging.getLOGGER();
     CommonConfig commonConfig = CommonConfig.getInstance();
 
@@ -25,8 +21,6 @@ public class MessageHandler extends Thread {
         this.messageType = MessageType.values()[Integer.parseInt(messageType)];
         this.messagePayload = messagePayload;
         this.remotePeerid = remotePeerid;
-        this.startTime= 0.0f;
-        this.stopTime= 0.0f;
     }
 
     public void run() {
@@ -39,12 +33,12 @@ public class MessageHandler extends Thread {
                 //update remote peer bitfield
                 BitField remoteBitField = currentPeer.getPeerBitField(remotePeerid);
                 remoteBitField.setBit(pieceIndex);
-                logger.log(Level.FINE, "No of piece with peer [" +  remotePeerid + "] = "
+                logger.log(Level.FINE, "No of piece with peer [" + remotePeerid + "] = "
                         + remoteBitField.getNumOfSetBit());
                 if (remoteBitField.getNumOfSetBit() == commonConfig.getNumOfPieces()) {
                     peerProcess.addPeerWithFile(remotePeerid);
                 }
-                //evaluateRemoteBitField(remoteBitField);//change and check just one bit
+
                 evaluateRemoteBitField(pieceIndex);
                 break;
             }
@@ -53,6 +47,7 @@ public class MessageHandler extends Thread {
                 logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] is choked by [" + remotePeerid + "]");
                 peerHandler.setIsCurrentPeerChoked(true);
                 currentPeer.removeRequestedPiece(peerHandler.getRequestedPieceIndex());
+                peerHandler.setPieceRequestStartTime(0.0f);
                 break;
 
             case UNCHOKE:
@@ -93,8 +88,14 @@ public class MessageHandler extends Thread {
                 if (currentPeer.getNeededPieces().size() == 0) {
                     logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] has downloaded the complete file.");
 
-                    while (!multicastHaveMessage.hasCompleted) {
+                    if (!multicastHaveMessage.hasCompleted) {
+                        logger.log(Level.INFO, "Waiting for compeletion");
                         //wait until all the have messages are sent
+                        try {
+                            TimeUnit.SECONDS.sleep(5);
+                        } catch (InterruptedException ignored) {
+
+                        }
                     }
 
                     peerProcess.addPeerWithFile(currentPeer.getPeerid());
@@ -105,19 +106,17 @@ public class MessageHandler extends Thread {
 
             case REQUEST:
                 int requestedPieceIndex = ByteConversionUtil.bytesToInt(messagePayload);
-                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() +"] received 'request' message from ["
+                logger.log(Level.INFO, "Peer [" + currentPeer.getPeerid() + "] received 'request' message from ["
                         + remotePeerid + "] for the piece [" + requestedPieceIndex + "]");
 
                 //send piece
                 byte[] piece = Message.pieceMessage(requestedPieceIndex);
-                if (startTime != System.nanoTime()){
-                    stopTime= System.nanoTime();
-                
-                    Map<Integer, Float> downloadSpeed = currentPeer.addDownloadSpeed(remotePeerid, startTime, stopTime, piece.length);
-                    currentPeer.setDownloadSpeed(downloadSpeed);
-
-                    startTime= stopTime;
+                float stopTime = System.nanoTime();
+                float startTime = peerHandler.getPieceRequestStartTime();
+                if (startTime != 0.0f) {
+                    currentPeer.addDownloadSpeed(remotePeerid, startTime, stopTime, piece.length);
                 }
+                peerHandler.setPieceRequestStartTime(stopTime);
                 peerHandler.sendMessage(piece);
                 break;
 
